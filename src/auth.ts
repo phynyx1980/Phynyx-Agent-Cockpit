@@ -31,11 +31,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             "openid",
             "email",
             "profile",
-            "https://www.googleapis.com/auth/gmail.readonly",
-            "https://www.googleapis.com/auth/gmail.send",
+            // Gmail — lesen, Entwürfe, senden (alles mit Freigabe-Pflicht)
+            "https://mail.google.com/",
+            // Kalender — lesen + schreiben (Einträge nur mit Philips Freigabe)
             "https://www.googleapis.com/auth/calendar",
+            "https://www.googleapis.com/auth/calendar.events",
+            // Tasks
             "https://www.googleapis.com/auth/tasks",
-            "https://www.googleapis.com/auth/drive.readonly",
+            // Drive — vollständiger Zugriff
+            "https://www.googleapis.com/auth/drive",
           ].join(" "),
           access_type:     "offline",
           prompt:          "consent",
