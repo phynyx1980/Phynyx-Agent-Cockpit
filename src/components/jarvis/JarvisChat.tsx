@@ -356,7 +356,7 @@ function EmailDraftCard({ draft }: { draft: EmailDraft }) {
       </div>
       <div className="flex items-center gap-2 px-3 py-2.5 border-t border-[#2A2A2A] bg-[#111111]">
         {status === "idle" && (
-          <button onClick={prepareDraft}
+          <button onClick={() => setConfirmPrepare(true)}
             className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#2A2A2A] text-xs text-[#999999] hover:text-white transition-colors">
             <Mail className="w-3.5 h-3.5" /> In Gmail-Entwürfen ablegen
           </button>
@@ -365,17 +365,35 @@ function EmailDraftCard({ draft }: { draft: EmailDraft }) {
         {status === "ready" && (
           <>
             <span className="text-[10px] text-[#22C55E]">✓ Entwurf in Gmail gespeichert</span>
-            <button onClick={sendNow}
+            <button onClick={() => setConfirmSend(true)}
               className="ml-auto flex items-center gap-2 px-4 py-2 rounded-lg bg-[#CC1100] text-xs font-bold text-white hover:brightness-110 transition-all"
               style={{ boxShadow: "0 0 12px rgba(204,17,0,0.4)" }}>
-              <SendHorizonal className="w-3.5 h-3.5" /> Jetzt senden (Freigabe)
+              <SendHorizonal className="w-3.5 h-3.5" /> Jetzt senden →
             </button>
           </>
         )}
         {status === "sending" && <span className="flex items-center gap-2 text-xs text-[#C9A84C]"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Wird gesendet…</span>}
-        {status === "sent" && <span className="text-xs text-[#22C55E] font-semibold">✓ E-Mail erfolgreich gesendet</span>}
-        {status === "error" && <span className="text-xs text-[#CC1100]">Fehler — bitte erneut versuchen</span>}
+        {status === "sent"    && <span className="text-xs text-[#22C55E] font-semibold">✓ E-Mail erfolgreich gesendet</span>}
+        {status === "error"   && <span className="text-xs text-[#CC1100]">Fehler — bitte erneut versuchen</span>}
       </div>
+
+      <ConfirmDialog
+        open={confirmPrepare}
+        title="Entwurf in Gmail ablegen?"
+        description={`An: ${draft.to}\nBetreff: "${draft.subject}"\n\nDer Entwurf wird in deinen Gmail-Entwürfen gespeichert. Noch nichts wird gesendet.`}
+        confirmLabel="Ja, ablegen"
+        onConfirm={doPrepare}
+        onCancel={() => setConfirmPrepare(false)}
+      />
+      <ConfirmDialog
+        open={confirmSend}
+        title="E-Mail wirklich senden?"
+        description={`Die E-Mail an ${draft.to} mit dem Betreff "${draft.subject}" wird jetzt unwiderruflich gesendet.`}
+        confirmLabel="Ja, jetzt senden"
+        danger
+        onConfirm={doSend}
+        onCancel={() => setConfirmSend(false)}
+      />
     </div>
   );
 }
