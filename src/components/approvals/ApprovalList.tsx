@@ -109,9 +109,7 @@ export function ApprovalList({ approvals: initial }: ApprovalListProps) {
                 <ApprovalCard
                   key={a.id}
                   approval={a}
-                  onApprove={handleApprove}
-                  onReject={handleReject}
-                  onDefer={handleDefer}
+                  onStatusChange={handleStatusChange}
                 />
               ))}
             </div>
@@ -147,9 +145,7 @@ export function ApprovalList({ approvals: initial }: ApprovalListProps) {
                 <ApprovalCard
                   key={a.id}
                   approval={a}
-                  onApprove={handleApprove}
-                  onReject={handleReject}
-                  onDefer={handleDefer}
+                  onStatusChange={handleStatusChange}
                 />
               ))}
             </div>
