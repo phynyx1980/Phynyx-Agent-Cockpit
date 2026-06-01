@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { signIn, signOut } from "next-auth/react";
-import { Mail, Calendar, CheckSquare, LogOut, RefreshCw, ExternalLink, Loader2 } from "lucide-react";
+import { Mail, Calendar, CheckSquare, HardDrive, LogOut, RefreshCw, ExternalLink, Loader2, FileText, Sheet, Presentation, File } from "lucide-react";
 import type { GmailMessage } from "@/lib/integrations/gmail";
 import type { CalendarEvent } from "@/lib/integrations/calendar";
 import type { GoogleTask } from "@/lib/integrations/tasks";
+import type { DriveFile } from "@/lib/integrations/drive";
 
 interface Props {
   isConnected: boolean;
