@@ -90,7 +90,7 @@ function buildSystemPrompt(intent: string, agentIds: string[], googleContext: st
     .join("\n");
 
   return `Du bist JARVIS, der Orchestrator von Phynyx Trust Solutions — einer KI-Agentur für österreichische KMU. Dein CEO ist Philip Trost. Du koordinierst spezialisierte Sub-Agenten und lieferst immer konkreten, direkt nutzbaren Output.
-
+${PHYNYX_KNOWLEDGE}
 ## Aktive Agenten für diese Anfrage
 ${agentDescriptions}
 
