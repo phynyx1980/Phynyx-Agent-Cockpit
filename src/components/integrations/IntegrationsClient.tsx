@@ -263,52 +263,11 @@ export function IntegrationsClient({ isConnected, userEmail }: Props) {
             </div>
           </div>
 
-          {/* Google Drive */}
-          <div className="rounded-xl bg-[#1A1A1A] border border-[#2A2A2A] overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#2A2A2A]">
-              <div className="flex items-center gap-2">
-                <HardDrive className="w-4 h-4 text-[#3B82F6]" />
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-white">Drive</h3>
-              </div>
-              <span className="text-[10px] text-[#999999]">{files.length} Dateien</span>
-            </div>
-            <div className="divide-y divide-[#2A2A2A]">
-              {files.length === 0 ? (
-                <p className="text-xs text-[#555555] text-center py-8">Keine Dateien</p>
-              ) : files.map((file) => {
-                const Icon = getDriveIcon(file.mimeType);
-                return (
-                  <div key={file.id} className="flex items-start gap-3 px-4 py-3 hover:bg-[#111111] transition-colors">
-                    <Icon className="w-3.5 h-3.5 text-[#3B82F6] shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-white truncate">{file.name}</p>
-                      <p className="text-[10px] text-[#999999] mt-0.5">{relativeTime(file.modifiedTime)}</p>
-                    </div>
-                    {file.webViewLink && (
-                      <a
-                        href={file.webViewLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="shrink-0 text-[#555555] hover:text-[#3B82F6] transition-colors"
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          {/* Google Drive — navigierbarer Browser */}
+          <DriveBrowser />
 
         </div>
       )}
     </div>
   );
-}
-
-function getDriveIcon(mimeType: string) {
-  if (mimeType === "application/vnd.google-apps.document")     return FileText;
-  if (mimeType === "application/vnd.google-apps.spreadsheet")  return File;
-  if (mimeType === "application/vnd.google-apps.presentation") return File;
-  return File;
 }
