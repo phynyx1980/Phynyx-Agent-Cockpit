@@ -1,14 +1,14 @@
 import { AppShell } from "@/components/layout/AppShell";
-import { ComingSoon } from "@/components/layout/ComingSoon";
+import { AgentsView } from "@/components/agents/AgentsView";
+import { AGENT_REGISTRY } from "@/lib/agents/agent-registry";
 
 export default function AgentsPage() {
   return (
-    <AppShell title="Agententeam" subtitle="14 operative KI-Agenten unter Jarvis-Führung">
-      <ComingSoon
-        title="Agententeam"
-        description="Alle 14 Phynyx-Agenten als interaktive Karten — Rolle, Zuständigkeit, Status und direkte Aktivierung."
-        agents={["Jarvis", "Nova", "Jenny", "Atlas", "Lina", "Soren", "Orion", "Elara", "Vega", "Kira", "Nox", "Milo", "Forge", "Echo"]}
-      />
+    <AppShell
+      title="Agententeam"
+      subtitle="14 operative KI-Agenten unter Jarvis-Führung"
+    >
+      <AgentsView agents={AGENT_REGISTRY} />
     </AppShell>
   );
 }
