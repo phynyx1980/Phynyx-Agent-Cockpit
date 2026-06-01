@@ -25,6 +25,11 @@ interface GoogleData {
   drive?:    DriveFile[];
 }
 
+interface DraftData {
+  emailDraft?:    EmailDraft;
+  calendarDraft?: CalendarDraft;
+}
+
 interface ChatMessage {
   id:              string;
   role:            "user" | "jarvis";
