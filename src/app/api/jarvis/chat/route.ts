@@ -2,8 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { z } from "zod";
 import { AGENT_REGISTRY } from "@/lib/agents/agent-registry";
+import { auth } from "@/auth";
+import { getInbox } from "@/lib/integrations/gmail";
+import { getUpcomingEvents } from "@/lib/integrations/calendar";
+import { getTasks } from "@/lib/integrations/tasks";
+import { getRecentFiles } from "@/lib/integrations/drive";
+import type { GmailMessage } from "@/lib/integrations/gmail";
+import type { CalendarEvent } from "@/lib/integrations/calendar";
+import type { GoogleTask } from "@/lib/integrations/tasks";
+import type { DriveFile } from "@/lib/integrations/drive";
 
-// ── Zod Validation (ELIAS) ────────────────────────────────────────────────────
+// ── Zod Validation ────────────────────────────────────────────────────────────
 
 const RequestSchema = z.object({
   message:         z.string().min(1).max(2000),
@@ -11,9 +20,72 @@ const RequestSchema = z.object({
   activatedAgents: z.array(z.string()).min(1).max(14),
 });
 
-// ── NEXUS System-Prompt ───────────────────────────────────────────────────────
+// ── Google Intents die echte Daten brauchen ───────────────────────────────────
 
-function buildSystemPrompt(intent: string, agentIds: string[]): string {
+const GOOGLE_INTENTS = new Set([
+  "gmail_query", "gmail_reply",
+  "calendar_query", "tasks_query", "drive_query",
+]);
+
+// ── NEXUS Google-Kontext Block (XML-Tags für präzisere LLM-Verarbeitung) ──────
+
+function buildGoogleContextBlock(
+  intent: string,
+  data: {
+    gmail?:    GmailMessage[];
+    calendar?: CalendarEvent[];
+    tasks?:    GoogleTask[];
+    drive?:    DriveFile[];
+  }
+): string {
+  const blocks: string[] = [];
+
+  if ((intent === "gmail_query" || intent === "gmail_reply") && data.gmail?.length) {
+    blocks.push(`<gmail>
+${data.gmail.map((m) =>
+  `[${m.unread ? "UNREAD" : "READ"}] id:${m.id} | ${m.date} | from:${m.from}
+subject: ${m.subject}
+preview: ${m.snippet}`
+).join("\n---\n")}
+</gmail>`);
+  }
+
+  if (intent === "calendar_query" && data.calendar?.length) {
+    blocks.push(`<calendar>
+${data.calendar.map((e) =>
+  `id:${e.id} | ${e.title} | ${e.start} → ${e.end}${e.location ? ` | @${e.location}` : ""}`
+).join("\n")}
+</calendar>`);
+  }
+
+  if (intent === "tasks_query" && data.tasks?.length) {
+    blocks.push(`<tasks>
+${data.tasks.map((t) =>
+  `[${t.completed ? "DONE" : "OPEN"}] id:${t.id} | ${t.title}${t.due ? ` | due:${t.due}` : ""}${t.notes ? ` | note:${t.notes}` : ""}`
+).join("\n")}
+</tasks>`);
+  }
+
+  if (intent === "drive_query" && data.drive?.length) {
+    blocks.push(`<drive>
+${data.drive.map((f) =>
+  `id:${f.id} | ${f.name} | ${f.mimeType} | modified:${f.modifiedTime}${f.webViewLink ? ` | ${f.webViewLink}` : ""}`
+).join("\n")}
+</drive>`);
+  }
+
+  if (!blocks.length) return "";
+
+  return `\n\n## LIVE GOOGLE DATA — AKTIV NUTZEN
+Die folgenden Daten wurden in Echtzeit abgerufen. Beziehe dich direkt darauf.
+Sage NICHT "ich habe keinen Zugriff" — diese Daten SIND dein Zugriff.
+
+${blocks.join("\n\n")}`;
+}
+
+// ── System-Prompt ─────────────────────────────────────────────────────────────
+
+function buildSystemPrompt(intent: string, agentIds: string[], googleContext: string): string {
   const agentDescriptions = agentIds
     .map((id) => {
       const agent = AGENT_REGISTRY.find((a) => a.id === id);
@@ -36,7 +108,7 @@ DEINE DIREKTIVEN:
 - Analysiere die Anfrage aus der Perspektive JEDES aktivierten Agenten separat
 - Liefere konkrete Empfehlungen — keine Floskeln, keine Worthülsen
 - Erkenne, ob eine Aktion Philips explizite Freigabe benötigt (requiresApproval: true bei: E-Mail-Versand, Angebote über 5.000 EUR, irreversible Aktionen, Deployments)
-- Priorisiere Geschwindigkeit und Umsetzbarkeit
+- Priorisiere Geschwindigkeit und Umsetzbarkeit${googleContext}
 
 OUTPUT-FORMAT — antworte NUR mit validem JSON, exakt nach dieser Struktur:
 {
@@ -60,15 +132,10 @@ Liefere ausschließlich das JSON-Objekt — kein Text davor oder danach.`;
 // ── Route Handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  // 1. API Key prüfen
   if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY.startsWith("sk-...")) {
-    return NextResponse.json(
-      { error: "OpenAI API key not configured" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 });
   }
 
-  // 2. Request validieren
   let body: unknown;
   try {
     body = await req.json();
@@ -76,17 +143,46 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const parsed = RequestSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Validation failed", details: parsed.error.issues },
-      { status: 400 }
-    );
+  const validated = RequestSchema.safeParse(body);
+  if (!validated.success) {
+    return NextResponse.json({ error: "Validation failed", details: validated.error.issues }, { status: 400 });
   }
 
-  const { message, intent, activatedAgents } = parsed.data;
+  const { message, intent, activatedAgents } = validated.data;
 
-  // 3. OpenAI aufrufen
+  // Google-Daten serverseitig holen wenn nötig
+  let googleContext = "";
+  if (GOOGLE_INTENTS.has(intent)) {
+    const session = await auth();
+    if (session?.accessToken) {
+      try {
+        const [gmail, calendar, tasks, drive] = await Promise.allSettled([
+          intent === "gmail_query" || intent === "gmail_reply"
+            ? getInbox(session.accessToken, 8)
+            : Promise.resolve([]),
+          intent === "calendar_query"
+            ? getUpcomingEvents(session.accessToken, 8)
+            : Promise.resolve([]),
+          intent === "tasks_query"
+            ? getTasks(session.accessToken, 15)
+            : Promise.resolve([]),
+          intent === "drive_query"
+            ? getRecentFiles(session.accessToken, 8)
+            : Promise.resolve([]),
+        ]);
+
+        googleContext = buildGoogleContextBlock(intent, {
+          gmail:    gmail.status    === "fulfilled" ? gmail.value    as GmailMessage[]  : [],
+          calendar: calendar.status === "fulfilled" ? calendar.value as CalendarEvent[] : [],
+          tasks:    tasks.status    === "fulfilled" ? tasks.value    as GoogleTask[]    : [],
+          drive:    drive.status    === "fulfilled" ? drive.value    as DriveFile[]     : [],
+        });
+      } catch {
+        // Kein Google-Kontext verfügbar — Jarvis antwortet trotzdem
+      }
+    }
+  }
+
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
   try {
@@ -96,46 +192,28 @@ export async function POST(req: NextRequest) {
       max_tokens:      1500,
       response_format: { type: "json_object" },
       messages: [
-        {
-          role:    "system",
-          content: buildSystemPrompt(intent, activatedAgents),
-        },
-        {
-          role:    "user",
-          content: message,
-        },
+        { role: "system", content: buildSystemPrompt(intent, activatedAgents, googleContext) },
+        { role: "user",   content: message },
       ],
     });
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
 
-    // 4. JSON parsen
-    let parsed: unknown;
+    let result: unknown;
     try {
-      parsed = JSON.parse(raw);
+      result = JSON.parse(raw);
     } catch {
-      return NextResponse.json(
-        { error: "Failed to parse AI response" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, data: parsed });
+    return NextResponse.json({ success: true, data: result });
 
   } catch (err) {
-    // OpenAI API Fehler
     if (err instanceof OpenAI.APIError) {
       console.error("OpenAI API Error:", err.status, err.message);
-      return NextResponse.json(
-        { error: "AI service unavailable", details: err.message },
-        { status: 502 }
-      );
+      return NextResponse.json({ error: "AI service unavailable", details: err.message }, { status: 502 });
     }
-
     console.error("Unexpected error:", err);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
