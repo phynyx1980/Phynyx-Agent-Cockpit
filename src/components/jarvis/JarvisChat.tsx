@@ -565,6 +565,7 @@ export function JarvisChat() {
   const [sessions,        setSessions]        = useState<ChatSession[]>([]);
   const [sidebarOpen,     setSidebarOpen]     = useState(false);
   const [loadingSessions, setLoadingSessions] = useState(false);
+  const [deleteConfirm,   setDeleteConfirm]   = useState<string | null>(null); // session id
   const bottomRef   = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
