@@ -167,7 +167,7 @@ export async function POST(req: NextRequest) {
             ? getUpcomingEvents(session.accessToken, 8)
             : Promise.resolve([]),
           intent === "tasks_query"
-            ? getTasks(session.accessToken, 15)
+            ? getGoogleTasks(session.accessToken, 15)
             : Promise.resolve([]),
           intent === "drive_query"
             ? getRecentFiles(session.accessToken, 8)
