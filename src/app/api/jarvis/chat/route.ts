@@ -5,12 +5,14 @@ import { AGENT_REGISTRY } from "@/lib/agents/agent-registry";
 import { auth } from "@/auth";
 import { getInbox } from "@/lib/integrations/gmail";
 import { getUpcomingEvents } from "@/lib/integrations/calendar";
-import { getTasks } from "@/lib/integrations/tasks";
+import { getTasks as getGoogleTasks } from "@/lib/integrations/tasks";
 import { getRecentFiles } from "@/lib/integrations/drive";
 import type { GmailMessage } from "@/lib/integrations/gmail";
 import type { CalendarEvent } from "@/lib/integrations/calendar";
 import type { GoogleTask } from "@/lib/integrations/tasks";
 import type { DriveFile } from "@/lib/integrations/drive";
+import { createTask, createApproval, createLog } from "@/lib/supabase/queries";
+import type { Approval } from "@/lib/agents/agent-types";
 
 // ── Zod Validation ────────────────────────────────────────────────────────────
 
