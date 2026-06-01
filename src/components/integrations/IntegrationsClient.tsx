@@ -148,7 +148,7 @@ export function IntegrationsClient({ isConnected, userEmail }: Props) {
       )}
 
       {!loading && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-5">
 
           {/* Gmail */}
           <div className="rounded-xl bg-[#1A1A1A] border border-[#2A2A2A] overflow-hidden">
