@@ -35,6 +35,18 @@ export async function getUpcomingEvents(
   }));
 }
 
+// Event-Vorschau erstellen (kein API-Call — nur Daten vorbereiten, für Approval-Flow)
+export function prepareEvent(
+  title:        string,
+  start:        string,
+  end:          string,
+  description?: string,
+  location?:    string,
+): { title: string; start: string; end: string; description?: string; location?: string } {
+  return { title, start, end, description, location };
+}
+
+// Kalender-Event erstellen (NUR nach Philips Freigabe aufrufen)
 export async function createEvent(
   accessToken: string,
   title:       string,
