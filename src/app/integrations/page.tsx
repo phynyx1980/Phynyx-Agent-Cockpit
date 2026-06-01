@@ -1,14 +1,14 @@
 import { AppShell } from "@/components/layout/AppShell";
-import { ComingSoon } from "@/components/layout/ComingSoon";
+import { auth } from "@/auth";
+import { IntegrationsClient } from "@/components/integrations/IntegrationsClient";
 
-export default function IntegrationsPage() {
+export default async function IntegrationsPage() {
+  const session = await auth();
+  const isConnected = !!session?.accessToken;
+
   return (
-    <AppShell title="Integrationen" subtitle="Friday, Gmail, Google, Social Media, Telegram und Supabase">
-      <ComingSoon
-        title="Integrationen"
-        description="Adapter-Schicht für Friday, Gmail, Google Calendar, Google Drive, Telegram, LinkedIn, Instagram und Supabase. Alle im Mock-Modus vorbereitet."
-        agents={["Echo", "Atlas", "Soren", "Nox", "Jarvis"]}
-      />
+    <AppShell title="Integrationen" subtitle="Google, Gmail, Kalender, Tasks — live verbunden">
+      <IntegrationsClient isConnected={isConnected} userEmail={session?.user?.email ?? null} />
     </AppShell>
   );
 }
