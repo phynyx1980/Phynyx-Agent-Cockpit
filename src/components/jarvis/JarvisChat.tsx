@@ -261,6 +261,142 @@ function DriveBlock({ files }: { files: DriveFile[] }) {
   );
 }
 
+// ── E-Mail-Entwurf Freigabe-Card ─────────────────────────────────────────────
+
+interface EmailDraft {
+  to:      string;
+  subject: string;
+  body:    string;
+  draftId?: string;
+}
+
+interface CalendarDraft {
+  title:       string;
+  start:       string;
+  end:         string;
+  description?: string;
+}
+
+function EmailDraftCard({ draft }: { draft: EmailDraft }) {
+  const [status,  setStatus]  = useState<"idle" | "creating" | "ready" | "sending" | "sent" | "error">("idle");
+  const [draftId, setDraftId] = useState<string | null>(draft.draftId ?? null);
+
+  async function prepareDraft() {
+    setStatus("creating");
+    try {
+      const res  = await fetch("/api/google/gmail/draft", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: draft.to, subject: draft.subject, body: draft.body }),
+      });
+      const json = await res.json();
+      if (json.success) { setDraftId(json.data.draftId); setStatus("ready"); }
+      else setStatus("error");
+    } catch { setStatus("error"); }
+  }
+
+  async function sendNow() {
+    if (!draftId) return;
+    setStatus("sending");
+    try {
+      const res = await fetch("/api/google/gmail/draft/send", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draftId }),
+      });
+      if ((await res.json()).success) setStatus("sent");
+      else setStatus("error");
+    } catch { setStatus("error"); }
+  }
+
+  return (
+    <div className="rounded-xl border border-[#CC1100]/50 bg-[#1A0A0A] overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-[#CC1100]/30">
+        <Mail className="w-3.5 h-3.5 text-[#CC1100]" />
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-white">E-Mail-Entwurf — Freigabe erforderlich</span>
+        <span className="ml-auto px-2 py-0.5 rounded-full bg-[#CC1100]/20 text-[#CC1100] text-[10px] font-bold">⚠ Noch nicht gesendet</span>
+      </div>
+      <div className="p-3 space-y-2">
+        <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+          <span className="text-[#555555]">An:</span>     <span className="text-white">{draft.to}</span>
+          <span className="text-[#555555]">Betreff:</span><span className="text-white font-medium">{draft.subject}</span>
+        </div>
+        <div className="rounded-lg bg-[#111111] border border-[#2A2A2A] p-2.5">
+          <p className="text-xs text-[#cccccc] leading-relaxed whitespace-pre-wrap max-h-40 overflow-y-auto">{draft.body}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 px-3 py-2.5 border-t border-[#2A2A2A] bg-[#111111]">
+        {status === "idle" && (
+          <button onClick={prepareDraft}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#2A2A2A] text-xs text-[#999999] hover:text-white transition-colors">
+            <Mail className="w-3.5 h-3.5" /> In Gmail-Entwürfen ablegen
+          </button>
+        )}
+        {status === "creating" && <span className="flex items-center gap-2 text-xs text-[#999999]"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Entwurf wird angelegt…</span>}
+        {status === "ready" && (
+          <>
+            <span className="text-[10px] text-[#22C55E]">✓ Entwurf in Gmail gespeichert</span>
+            <button onClick={sendNow}
+              className="ml-auto flex items-center gap-2 px-4 py-2 rounded-lg bg-[#CC1100] text-xs font-bold text-white hover:brightness-110 transition-all"
+              style={{ boxShadow: "0 0 12px rgba(204,17,0,0.4)" }}>
+              <SendHorizonal className="w-3.5 h-3.5" /> Jetzt senden (Freigabe)
+            </button>
+          </>
+        )}
+        {status === "sending" && <span className="flex items-center gap-2 text-xs text-[#C9A84C]"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Wird gesendet…</span>}
+        {status === "sent" && <span className="text-xs text-[#22C55E] font-semibold">✓ E-Mail erfolgreich gesendet</span>}
+        {status === "error" && <span className="text-xs text-[#CC1100]">Fehler — bitte erneut versuchen</span>}
+      </div>
+    </div>
+  );
+}
+
+function CalendarDraftCard({ draft }: { draft: CalendarDraft }) {
+  const [status, setStatus] = useState<"idle" | "creating" | "done" | "error">("idle");
+
+  async function createNow() {
+    setStatus("creating");
+    try {
+      const res = await fetch("/api/google/calendar/event", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(draft),
+      });
+      if ((await res.json()).success) setStatus("done");
+      else setStatus("error");
+    } catch { setStatus("error"); }
+  }
+
+  return (
+    <div className="rounded-xl border border-[#C9A84C]/50 bg-[#1A1500] overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-[#C9A84C]/30">
+        <Calendar className="w-3.5 h-3.5 text-[#C9A84C]" />
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-white">Kalender-Eintrag — Freigabe erforderlich</span>
+        <span className="ml-auto px-2 py-0.5 rounded-full bg-[#C9A84C]/20 text-[#C9A84C] text-[10px] font-bold">⚠ Noch nicht erstellt</span>
+      </div>
+      <div className="p-3 space-y-1.5">
+        <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+          <span className="text-[#555555]">Titel:</span>  <span className="text-white font-medium">{draft.title}</span>
+          <span className="text-[#555555]">Start:</span>  <span className="text-[#C9A84C]">{new Date(draft.start).toLocaleString("de-AT")}</span>
+          <span className="text-[#555555]">Ende:</span>   <span className="text-[#999999]">{new Date(draft.end).toLocaleString("de-AT")}</span>
+          {draft.description && <><span className="text-[#555555]">Info:</span><span className="text-[#cccccc]">{draft.description}</span></>}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 px-3 py-2.5 border-t border-[#2A2A2A] bg-[#111111]">
+        {status === "idle" && (
+          <button onClick={createNow}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#C9A84C] text-xs font-bold text-[#0A0A0A] hover:brightness-110 transition-all">
+            <CalendarPlus className="w-3.5 h-3.5" /> In Kalender eintragen (Freigabe)
+          </button>
+        )}
+        {status === "creating" && <span className="flex items-center gap-2 text-xs text-[#999999]"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Wird erstellt…</span>}
+        {status === "done"     && <span className="text-xs text-[#22C55E] font-semibold">✓ Kalender-Eintrag erstellt</span>}
+        {status === "error"    && <span className="text-xs text-[#CC1100]">Fehler — bitte erneut versuchen</span>}
+      </div>
+    </div>
+  );
+}
+
 // ── Agent Bar ─────────────────────────────────────────────────────────────────
 
 function AgentBar({ agentIds }: { agentIds: string[] }) {
