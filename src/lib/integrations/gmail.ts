@@ -114,6 +114,35 @@ export async function trashEmail(accessToken: string, messageId: string): Promis
   await gmail.users.messages.trash({ userId: "me", id: messageId });
 }
 
+// Gmail-Entwurf erstellen (kein Versand — Freigabe durch Philip nötig)
+export async function createDraft(
+  accessToken: string,
+  to:          string,
+  subject:     string,
+  body:        string,
+): Promise<{ draftId: string; to: string; subject: string; body: string }> {
+  const auth  = getGoogleClient(accessToken);
+  const gmail = google.gmail({ version: "v1", auth });
+
+  const raw = Buffer.from(
+    `To: ${to}\r\nSubject: ${subject}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${body}`
+  ).toString("base64url");
+
+  const res = await gmail.users.drafts.create({
+    userId:      "me",
+    requestBody: { message: { raw } },
+  });
+
+  return { draftId: res.data.id!, to, subject, body };
+}
+
+// Vorbereiteten Entwurf senden (NUR nach Philips Freigabe aufrufen)
+export async function sendDraft(accessToken: string, draftId: string): Promise<void> {
+  const auth  = getGoogleClient(accessToken);
+  const gmail = google.gmail({ version: "v1", auth });
+  await gmail.users.drafts.send({ userId: "me", requestBody: { id: draftId } });
+}
+
 // Mail senden
 export async function sendEmail(
   accessToken: string, to: string, subject: string, body: string,
