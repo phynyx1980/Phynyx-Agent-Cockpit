@@ -110,6 +110,7 @@ export function ApprovalList({ approvals: initial }: ApprovalListProps) {
                   key={a.id}
                   approval={a}
                   onStatusChange={handleStatusChange}
+                  onDelete={(id) => setItems((prev) => prev.filter((x) => x.id !== id))}
                 />
               ))}
             </div>
@@ -146,6 +147,7 @@ export function ApprovalList({ approvals: initial }: ApprovalListProps) {
                   key={a.id}
                   approval={a}
                   onStatusChange={handleStatusChange}
+                  onDelete={(id) => setItems((prev) => prev.filter((x) => x.id !== id))}
                 />
               ))}
             </div>
