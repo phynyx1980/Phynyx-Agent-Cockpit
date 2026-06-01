@@ -1,5 +1,5 @@
 import { AppShell } from "@/components/layout/AppShell";
-import { JarvisChatPlaceholder } from "@/components/jarvis/JarvisChatPlaceholder";
+import { JarvisChat } from "@/components/jarvis/JarvisChat";
 
 export default function JarvisChatPage() {
   return (
@@ -7,7 +7,7 @@ export default function JarvisChatPage() {
       title="Jarvis Chat"
       subtitle="Zentraler Orchestrator — stelle Jarvis eine Aufgabe"
     >
-      <JarvisChatPlaceholder />
+      <JarvisChat />
     </AppShell>
   );
 }
