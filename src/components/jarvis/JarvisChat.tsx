@@ -761,17 +761,28 @@ export function JarvisChat() {
             ) : sessions.length === 0 ? (
               <p className="text-[11px] text-[#555555] text-center py-6">Noch keine Chats</p>
             ) : sessions.map((s) => (
-              <button
+              <div
                 key={s.id}
-                onClick={() => openSession(s.id)}
-                className={`w-full flex flex-col px-3 py-2.5 text-left hover:bg-[#1A1A1A] transition-colors border-b border-[#1A1A1A] ${s.id === sessionId ? "bg-[#1A1A1A] border-l-2 border-l-[#CC1100]" : ""}`}
+                className={`group flex items-start border-b border-[#1A1A1A] ${s.id === sessionId ? "bg-[#1A1A1A] border-l-2 border-l-[#CC1100]" : ""}`}
               >
-                <p className="text-xs text-white truncate">{s.title || "Neuer Chat"}</p>
-                <div className="flex items-center gap-1 mt-0.5">
-                  <Clock className="w-2.5 h-2.5 text-[#555555]" />
-                  <p className="text-[10px] text-[#555555]">{relativeDay(s.updatedAt)}</p>
-                </div>
-              </button>
+                <button
+                  onClick={() => openSession(s.id)}
+                  className="flex-1 min-w-0 flex flex-col px-3 py-2.5 text-left hover:bg-[#1A1A1A] transition-colors"
+                >
+                  <p className="text-xs text-white truncate">{s.title || "Neuer Chat"}</p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <Clock className="w-2.5 h-2.5 text-[#555555]" />
+                    <p className="text-[10px] text-[#555555]">{relativeDay(s.updatedAt)}</p>
+                  </div>
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setDeleteConfirm(s.id); }}
+                  title="Chat löschen"
+                  className="shrink-0 p-2 opacity-0 group-hover:opacity-100 text-[#555555] hover:text-[#CC1100] transition-all"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
             ))}
           </div>
         </div>
