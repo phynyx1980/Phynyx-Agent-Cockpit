@@ -399,9 +399,11 @@ function EmailDraftCard({ draft }: { draft: EmailDraft }) {
 }
 
 function CalendarDraftCard({ draft }: { draft: CalendarDraft }) {
-  const [status, setStatus] = useState<"idle" | "creating" | "done" | "error">("idle");
+  const [status,  setStatus]  = useState<"idle" | "creating" | "done" | "error">("idle");
+  const [confirm, setConfirm] = useState(false);
 
-  async function createNow() {
+  async function doCreate() {
+    setConfirm(false);
     setStatus("creating");
     try {
       const res = await fetch("/api/google/calendar/event", {
