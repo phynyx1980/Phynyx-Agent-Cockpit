@@ -433,15 +433,24 @@ function CalendarDraftCard({ draft }: { draft: CalendarDraft }) {
       </div>
       <div className="flex items-center gap-2 px-3 py-2.5 border-t border-[#2A2A2A] bg-[#111111]">
         {status === "idle" && (
-          <button onClick={createNow}
+          <button onClick={() => setConfirm(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#C9A84C] text-xs font-bold text-[#0A0A0A] hover:brightness-110 transition-all">
-            <CalendarPlus className="w-3.5 h-3.5" /> In Kalender eintragen (Freigabe)
+            <CalendarPlus className="w-3.5 h-3.5" /> In Kalender eintragen →
           </button>
         )}
         {status === "creating" && <span className="flex items-center gap-2 text-xs text-[#999999]"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Wird erstellt…</span>}
         {status === "done"     && <span className="text-xs text-[#22C55E] font-semibold">✓ Kalender-Eintrag erstellt</span>}
         {status === "error"    && <span className="text-xs text-[#CC1100]">Fehler — bitte erneut versuchen</span>}
       </div>
+
+      <ConfirmDialog
+        open={confirm}
+        title="Kalender-Eintrag erstellen?"
+        description={`"${draft.title}" wird in deinen Google Kalender eingetragen.\nStart: ${new Date(draft.start).toLocaleString("de-AT")}`}
+        confirmLabel="Ja, eintragen"
+        onConfirm={doCreate}
+        onCancel={() => setConfirm(false)}
+      />
     </div>
   );
 }
