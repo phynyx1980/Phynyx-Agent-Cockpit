@@ -15,6 +15,7 @@ import type { CalendarEvent } from "@/lib/integrations/calendar";
 import type { GoogleTask } from "@/lib/integrations/tasks";
 import type { DriveFile } from "@/lib/integrations/drive";
 import { AgentResultCard } from "./AgentResultCard";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 // ── Typen ─────────────────────────────────────────────────────────────────────
 
