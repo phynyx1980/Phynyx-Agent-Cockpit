@@ -170,7 +170,7 @@ export async function POST(req: NextRequest) {
             ? getGoogleTasks(session.accessToken, 15)
             : Promise.resolve([]),
           intent === "drive_query"
-            ? getRecentFiles(session.accessToken, 8)
+            ? getFolderContents(session.accessToken, "root", 8)
             : Promise.resolve([]),
         ]);
 
