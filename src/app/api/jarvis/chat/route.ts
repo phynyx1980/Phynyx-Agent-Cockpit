@@ -218,7 +218,7 @@ export async function POST(req: NextRequest) {
     const savedTask = await createTask({
       source:           "user",
       userMessage:      message,
-      intent,
+      intent:           intent as Intent,
       assignedAgents:   activatedAgents,
       status:           result.requiresApproval ? "awaiting_approval" : "completed",
       priority:         "medium",
