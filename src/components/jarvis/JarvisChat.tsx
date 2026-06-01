@@ -161,21 +161,27 @@ function EmailCard({ mail, onRemove }: { mail: GmailMessage; onRemove?: (id: str
 
 // ── Rich Google-Content im Chat ───────────────────────────────────────────────
 
-function GmailBlock({ messages }: { messages: GmailMessage[] }) {
-  if (!messages.length) return null;
+function GmailBlock({ messages: initial }: { messages: GmailMessage[] }) {
+  const [mails, setMails] = useState<GmailMessage[]>(initial);
+  const unreadCount = mails.filter((m) => m.unread).length;
+  if (!mails.length) return null;
   return (
     <div className="rounded-xl border border-[#2A2A2A] overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 bg-[#111111] border-b border-[#2A2A2A]">
         <Mail className="w-3.5 h-3.5 text-[#CC1100]" />
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-white">Gmail · {messages.length} Mails</span>
-        {messages.filter((m) => m.unread).length > 0 && (
-          <span className="px-1.5 py-0.5 rounded-full bg-[#CC1100] text-white text-[10px] font-bold">
-            {messages.filter((m) => m.unread).length} neu
-          </span>
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-white">Gmail · {mails.length} Mails</span>
+        {unreadCount > 0 && (
+          <span className="px-1.5 py-0.5 rounded-full bg-[#CC1100] text-white text-[10px] font-bold">{unreadCount} neu</span>
         )}
-        <span className="ml-auto text-[10px] text-[#555555]">Klicken zum Öffnen</span>
+        <span className="ml-auto text-[10px] text-[#555555]">Hover → Aktionen</span>
       </div>
-      {messages.map((mail) => <EmailCard key={mail.id} mail={mail} />)}
+      {mails.map((mail) => (
+        <EmailCard
+          key={mail.id}
+          mail={mail}
+          onRemove={(id) => setMails((prev) => prev.filter((m) => m.id !== id))}
+        />
+      ))}
     </div>
   );
 }
