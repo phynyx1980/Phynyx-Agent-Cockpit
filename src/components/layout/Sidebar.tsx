@@ -114,9 +114,9 @@ export function Sidebar() {
                 ].join(" ")}
               />
               <span className="flex-1 truncate font-medium">{item.label}</span>
-              {item.badge !== undefined && item.badge > 0 && (
+              {item.badgeKey && badges[item.badgeKey] > 0 && (
                 <span className="flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-[#CC1100] text-white text-[10px] font-bold">
-                  {item.badge}
+                  {badges[item.badgeKey]}
                 </span>
               )}
               {isActive && (
