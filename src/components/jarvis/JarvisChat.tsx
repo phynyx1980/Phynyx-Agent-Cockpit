@@ -153,7 +153,7 @@ export function JarvisChat() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  function sendMessage(text: string) {
+  async function sendMessage(text: string) {
     if (!text.trim() || loading) return;
 
     const userMsg: ChatMessage = {
@@ -167,19 +167,103 @@ export function JarvisChat() {
     setInput("");
     setLoading(true);
 
-    // Simulate Jarvis processing delay for realism
-    setTimeout(() => {
-      const response = runJarvisOrchestrator(text.trim());
-      const jarvisMsg: ChatMessage = {
-        id: Math.random().toString(36).slice(2),
-        role: "jarvis",
-        content: response.summary,
-        jarvisResponse: response,
-        timestamp: new Date(),
+    try {
+      // 1. Intent + Agenten lokal erkennen (keine API-Kosten)
+      const route          = detectIntent(text.trim());
+      const intent         = route.intent;
+      const activatedAgents = getAllAgentsForIntent(intent);
+      const handoff        = getHandoffEntry(intent);
+
+      // 2. OpenAI via API Route aufrufen
+      const res = await fetch("/api/jarvis/chat", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ message: text.trim(), intent, activatedAgents }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`API ${res.status}: ${await res.text()}`);
+      }
+
+      const json = await res.json();
+      const data = json.data as {
+        summary:         string;
+        agentResults:    Array<{
+          agentId:          string;
+          summary:          string;
+          details:          string;
+          suggestedActions: string[];
+          risks:            string[];
+        }>;
+        nextSteps:       string[];
+        requiresApproval: boolean;
       };
-      setMessages((prev) => [...prev, jarvisMsg]);
+
+      // 3. JarvisResponse zusammenbauen (UI-Struktur bleibt identisch)
+      const taskId = Math.random().toString(36).slice(2);
+
+      const results: AgentResult[] = (data.agentResults ?? []).map((r, i) => ({
+        id:               `r-${i}`,
+        taskId,
+        agentId:          r.agentId,
+        status:           "done" as const,
+        summary:          r.summary,
+        details:          r.details,
+        suggestedActions: r.suggestedActions ?? [],
+        risks:            r.risks ?? [],
+        createdAt:        new Date().toISOString(),
+      }));
+
+      const approvals: Approval[] = (data.requiresApproval ?? handoff.requiresApproval) ? [{
+        id:             `apr-${taskId}`,
+        taskId,
+        title:          `Freigabe: ${intent.replace(/_/g, " ")}`,
+        description:    handoff.approvalReason ?? "Diese Aktion erfordert deine Freigabe.",
+        actionType:     "trigger_external_api",
+        riskLevel:      handoff.priority === "urgent" ? "critical" : handoff.priority === "high" ? "high" : "medium",
+        status:         "open",
+        involvedAgents: activatedAgents,
+        createdAt:      new Date().toISOString(),
+      }] : [];
+
+      const response: JarvisResponse = {
+        taskId,
+        intent,
+        activatedAgents,
+        summary:         data.summary,
+        results,
+        approvalRequired: approvals.length > 0,
+        approvals,
+        logs:            [],
+        nextSteps:       data.nextSteps ?? [],
+      };
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id:             Math.random().toString(36).slice(2),
+          role:           "jarvis",
+          content:        response.summary,
+          jarvisResponse: response,
+          timestamp:      new Date(),
+        },
+      ]);
+
+    } catch (err) {
+      // Fallback-Meldung bei API-Fehler
+      setMessages((prev) => [
+        ...prev,
+        {
+          id:        Math.random().toString(36).slice(2),
+          role:      "jarvis",
+          content:   "Entschuldigung — Jarvis konnte die Anfrage nicht verarbeiten. Bitte prüfe den OpenAI API Key in .env.local.",
+          timestamp: new Date(),
+        },
+      ]);
+      console.error("Jarvis API error:", err);
+    } finally {
       setLoading(false);
-    }, 800 + Math.random() * 600);
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
