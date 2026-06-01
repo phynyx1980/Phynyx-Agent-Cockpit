@@ -6,7 +6,7 @@ import { getAgentById } from "@/lib/agents/agent-registry";
 import {
   Clock, CheckCircle2, RefreshCcw, XCircle, MinusCircle,
   Mail, Share2, FileText, Zap, CalendarPlus, BadgeCheck,
-  Trash2, Database, PenLine, Bot, Download, Loader2, ChevronDown, ChevronUp,
+  Trash2, Database, PenLine, Bot, Download, Loader2, ChevronDown, ChevronUp, X,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
