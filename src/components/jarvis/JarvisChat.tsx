@@ -605,6 +605,14 @@ export function JarvisChat() {
     setMessages(msgs);
   }
 
+  // Session löschen
+  async function deleteSession(id: string) {
+    setDeleteConfirm(null);
+    await fetch(`/api/chat/sessions/${id}`, { method: "DELETE", credentials: "include" });
+    setSessions((prev) => prev.filter((s) => s.id !== id));
+    if (sessionId === id) { setSessionId(null); setMessages([]); }
+  }
+
   // Neue Session
   function newSession() {
     setSessionId(null);
