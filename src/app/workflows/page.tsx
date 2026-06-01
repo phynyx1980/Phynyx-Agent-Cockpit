@@ -1,14 +1,18 @@
 import { AppShell } from "@/components/layout/AppShell";
-import { ComingSoon } from "@/components/layout/ComingSoon";
+import { WorkflowStats } from "@/components/workflows/WorkflowStats";
+import { WorkflowList } from "@/components/workflows/WorkflowList";
+import { MOCK_TASKS, MOCK_LOGS } from "@/lib/mock-data/workflows";
 
 export default function WorkflowsPage() {
   return (
-    <AppShell title="Workflow Center" subtitle="Aufgaben, Status und Agentenbeteiligung">
-      <ComingSoon
-        title="Workflow Center"
-        description="Alle laufenden und abgeschlossenen Tasks mit beteiligten Agenten, Status-Tracking und Ergebnissen."
-        agents={["Jarvis", "Nova", "Atlas", "Soren", "Forge"]}
-      />
+    <AppShell
+      title="Workflow Center"
+      subtitle="Laufende & abgeschlossene Tasks · Agentenbeteiligung · Status-Tracking"
+    >
+      <div className="space-y-6">
+        <WorkflowStats tasks={MOCK_TASKS} />
+        <WorkflowList tasks={MOCK_TASKS} logs={MOCK_LOGS} />
+      </div>
     </AppShell>
   );
 }
