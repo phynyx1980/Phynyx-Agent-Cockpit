@@ -788,6 +788,17 @@ export function JarvisChat() {
         </div>
       </div>
 
+      {/* Bestätigung Chat löschen */}
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        title="Chat löschen?"
+        description={`"${sessions.find((s) => s.id === deleteConfirm)?.title || "Dieser Chat"}" und alle Nachrichten werden dauerhaft gelöscht.`}
+        confirmLabel="Ja, löschen"
+        danger
+        onConfirm={() => deleteConfirm && deleteSession(deleteConfirm)}
+        onCancel={() => setDeleteConfirm(null)}
+      />
+
       {/* Chat Area */}
       <div className="flex flex-col flex-1 min-w-0">
         {/* Chat-Header */}
