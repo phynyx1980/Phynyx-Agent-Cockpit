@@ -52,12 +52,23 @@ const logEventLabel: Record<string, string> = {
   task_failed:        "Fehlgeschlagen",
 };
 
-export function WorkflowCard({ task, logs = [] }: WorkflowCardProps) {
-  const [showLogs, setShowLogs] = useState(false);
-  const cfg = statusConfig[task.status];
+export function WorkflowCard({ task, logs = [], onDelete }: WorkflowCardProps) {
+  const [showLogs,  setShowLogs]  = useState(false);
+  const [confirm,   setConfirm]   = useState(false);
+  const [deleting,  setDeleting]  = useState(false);
+  const cfg  = statusConfig[task.status];
   const Icon = cfg.icon;
   const prio = priorityConfig[task.priority];
   const isAnimated = task.status === "in_progress" || task.status === "routing";
+
+  async function doDelete() {
+    setConfirm(false);
+    setDeleting(true);
+    try {
+      await fetch(`/api/tasks/${task.id}`, { method: "DELETE", credentials: "include" });
+      onDelete?.(task.id);
+    } finally { setDeleting(false); }
+  }
 
   return (
     <div
