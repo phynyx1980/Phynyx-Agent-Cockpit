@@ -8,6 +8,14 @@ import type { ApprovalPayload } from "@/lib/agents/agent-types";
 
 type Ctx = { params: Promise<{ id: string }> };
 
+export async function DELETE(_req: NextRequest, { params }: Ctx) {
+  const { id } = await params;
+  const db = createServerClient();
+  const { error } = await db.from("approvals").delete().eq("id", id);
+  if (error) return NextResponse.json({ error: "Löschen fehlgeschlagen" }, { status: 500 });
+  return NextResponse.json({ success: true });
+}
+
 const Schema = z.object({
   action: z.enum(["approve", "reject", "defer"]),
 });
