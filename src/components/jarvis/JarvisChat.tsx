@@ -777,7 +777,7 @@ export function JarvisChat() {
                   <div className="space-y-2">
                     <p className="text-[10px] text-[#999999] pl-1">Jarvis · {formatTime(msg.timestamp)}</p>
                     {msg.jarvisResponse ? (
-                      <JarvisResponseBubble response={msg.jarvisResponse} googleData={msg.googleData} />
+                      <JarvisResponseBubble response={msg.jarvisResponse} googleData={msg.googleData} draftData={msg.draftData} />
                     ) : (
                       <div className="px-4 py-3 rounded-xl bg-[#1A1A1A] border border-[#2A2A2A] text-sm text-white leading-relaxed">
                         {msg.content}
