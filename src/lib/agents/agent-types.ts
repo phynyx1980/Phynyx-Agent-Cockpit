@@ -66,7 +66,12 @@ export type Intent =
   | "voice_interface"
   | "show_agents"
   | "show_approvals"
-  | "show_tasks";
+  | "show_tasks"
+  | "gmail_query"
+  | "gmail_reply"
+  | "calendar_query"
+  | "tasks_query"
+  | "drive_query";
 
 export interface AgentProfile {
   id: string;
