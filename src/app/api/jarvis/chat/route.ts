@@ -13,6 +13,7 @@ import type { GoogleTask } from "@/lib/integrations/tasks";
 import type { DriveFile } from "@/lib/integrations/drive";
 import { createTask, createApproval, createLog } from "@/lib/supabase/queries";
 import type { Approval, Intent } from "@/lib/agents/agent-types";
+import PHYNYX_KNOWLEDGE from "@/lib/knowledge/phynyx-knowledge";
 
 // ── Zod Validation ────────────────────────────────────────────────────────────
 
