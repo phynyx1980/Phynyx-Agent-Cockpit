@@ -32,6 +32,7 @@ function rowToApproval(r: Record<string, unknown>): Approval {
     createdAt:      r.created_at as string,
     approvedAt:     r.approved_at as string | undefined,
     notes:          r.notes as string | undefined,
+    payload:        r.payload as Approval["payload"] | undefined,
   };
 }
 
