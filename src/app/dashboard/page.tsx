@@ -31,9 +31,9 @@ function relativeTime(iso: string): string {
 // ── Page (Server Component — liest echte Mock-Daten) ─────────────────────────
 
 export default function DashboardPage() {
-  const agents    = mockDataSource.getAgents();
-  const tasks     = mockDataSource.getTasks();
-  const approvals = mockDataSource.getApprovals();
+  const agents    = liveDataSource.getAgents();
+  const tasks     = liveDataSource.getTasks();
+  const approvals = liveDataSource.getApprovals();
 
   const agentStats   = getAgentStats(agents);
   const taskStats    = getTaskStats(tasks);
