@@ -67,12 +67,14 @@ const relativeDay = (iso: string) => {
 // ── Aufklappbare E-Mail-Karte ─────────────────────────────────────────────────
 
 function EmailCard({ mail, onRemove }: { mail: GmailMessage; onRemove?: (id: string) => void }) {
-  const [open,    setOpen]    = useState(false);
-  const [body,    setBody]    = useState<string | null>(mail.body ?? null);
-  const [loading, setLoading] = useState(false);
-  const [unread,  setUnread]  = useState(mail.unread);
-  const [deleted, setDeleted] = useState(false);
-  const [acting,  setActing]  = useState<"read" | "delete" | null>(null);
+  const [open,          setOpen]          = useState(false);
+  const [body,          setBody]          = useState<string | null>(mail.body ?? null);
+  const [loading,       setLoading]       = useState(false);
+  const [unread,        setUnread]        = useState(mail.unread);
+  const [deleted,       setDeleted]       = useState(false);
+  const [acting,        setActing]        = useState<"read" | "delete" | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmRead,   setConfirmRead]   = useState(false);
 
   if (deleted) return null;
 
@@ -87,9 +89,7 @@ function EmailCard({ mail, onRemove }: { mail: GmailMessage; onRemove?: (id: str
     finally { setLoading(false); setOpen(true); }
   }
 
-  async function markRead(e: React.MouseEvent) {
-    e.stopPropagation();
-    if (!unread || acting) return;
+  async function doMarkRead() {
     setActing("read");
     try {
       await fetch(`/api/google/gmail/${mail.id}`, {
@@ -98,18 +98,17 @@ function EmailCard({ mail, onRemove }: { mail: GmailMessage; onRemove?: (id: str
         body: JSON.stringify({ action: "markRead" }),
       });
       setUnread(false);
-    } finally { setActing(null); }
+    } finally { setActing(null); setConfirmRead(false); }
   }
 
-  async function deleteMail(e: React.MouseEvent) {
-    e.stopPropagation();
-    if (acting) return;
+  async function doDelete() {
     setActing("delete");
     try {
       await fetch(`/api/google/gmail/${mail.id}`, { method: "DELETE", credentials: "include" });
       setDeleted(true);
       onRemove?.(mail.id);
     } catch { setActing(null); }
+    setConfirmDelete(false);
   }
 
   return (
