@@ -118,6 +118,23 @@ export interface AgentResult {
   createdAt: string;
 }
 
+export interface ApprovalPayload {
+  type:           "email" | "offer_pdf" | "calendar" | "general";
+  content?:       string;          // Volltext (Email-Body, Angebot-Text)
+  to?:            string;          // Empfänger
+  subject?:       string;          // Betreff
+  draftId?:       string;          // Gmail Draft ID
+  offerData?: {                    // Strukturierte Angebotsdaten
+    client:       string;
+    items:        Array<{ name: string; price: string; description?: string }>;
+    total?:       string;
+    notes?:       string;
+  };
+  calendarData?: {
+    title: string; start: string; end: string; description?: string;
+  };
+}
+
 export interface Approval {
   id: string;
   taskId: string;
@@ -130,6 +147,7 @@ export interface Approval {
   createdAt: string;
   approvedAt?: string;
   notes?: string;
+  payload?: ApprovalPayload;
 }
 
 export interface WorkflowLog {
