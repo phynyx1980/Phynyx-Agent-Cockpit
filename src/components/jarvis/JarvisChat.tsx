@@ -644,7 +644,7 @@ export function JarvisChat() {
       const jarvisMsg: ChatMessage = {
         id: Math.random().toString(36).slice(2),
         role: "jarvis", content: response.summary,
-        jarvisResponse: response, googleData, timestamp: new Date(),
+        jarvisResponse: response, googleData, draftData, timestamp: new Date(),
       };
       setMessages((prev) => [...prev, jarvisMsg]);
 
