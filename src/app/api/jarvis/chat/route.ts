@@ -6,14 +6,13 @@ import { auth } from "@/auth";
 import { getInbox } from "@/lib/integrations/gmail";
 import { getUpcomingEvents } from "@/lib/integrations/calendar";
 import { getTasks as getGoogleTasks } from "@/lib/integrations/tasks";
-import type { Intent } from "@/lib/agents/agent-types";
 import { getFolderContents } from "@/lib/integrations/drive";
 import type { GmailMessage } from "@/lib/integrations/gmail";
 import type { CalendarEvent } from "@/lib/integrations/calendar";
 import type { GoogleTask } from "@/lib/integrations/tasks";
 import type { DriveFile } from "@/lib/integrations/drive";
 import { createTask, createApproval, createLog } from "@/lib/supabase/queries";
-import type { Approval } from "@/lib/agents/agent-types";
+import type { Approval, Intent } from "@/lib/agents/agent-types";
 
 // ── Zod Validation ────────────────────────────────────────────────────────────
 
@@ -23,113 +22,112 @@ const RequestSchema = z.object({
   activatedAgents: z.array(z.string()).min(1).max(14),
 });
 
-// ── Google Intents die echte Daten brauchen ───────────────────────────────────
+// ── Google Intents ────────────────────────────────────────────────────────────
 
 const GOOGLE_INTENTS = new Set([
   "gmail_query", "gmail_reply",
   "calendar_query", "tasks_query", "drive_query",
 ]);
 
-// ── NEXUS Google-Kontext Block (XML-Tags für präzisere LLM-Verarbeitung) ──────
+// ── Google Kontext-Block für den Prompt ───────────────────────────────────────
 
 function buildGoogleContextBlock(
   intent: string,
-  data: {
-    gmail?:    GmailMessage[];
-    calendar?: CalendarEvent[];
-    tasks?:    GoogleTask[];
-    drive?:    DriveFile[];
-  }
+  data: { gmail?: GmailMessage[]; calendar?: CalendarEvent[]; tasks?: GoogleTask[]; drive?: DriveFile[] }
 ): string {
   const blocks: string[] = [];
 
   if ((intent === "gmail_query" || intent === "gmail_reply") && data.gmail?.length) {
-    blocks.push(`<gmail>
-${data.gmail.map((m) =>
-  `[${m.unread ? "UNREAD" : "READ"}] id:${m.id} | ${m.date} | from:${m.from}
-subject: ${m.subject}
-preview: ${m.snippet}`
+    blocks.push(`<gmail_data count="${data.gmail.length}">
+${data.gmail.map((m, i) =>
+  `Mail ${i + 1}: [${m.unread ? "UNGELESEN" : "GELESEN"}]
+  Von: ${m.from}
+  Betreff: ${m.subject}
+  Vorschau: ${m.snippet}`
 ).join("\n---\n")}
-</gmail>`);
+</gmail_data>`);
   }
 
   if (intent === "calendar_query" && data.calendar?.length) {
-    blocks.push(`<calendar>
-${data.calendar.map((e) =>
-  `id:${e.id} | ${e.title} | ${e.start} → ${e.end}${e.location ? ` | @${e.location}` : ""}`
-).join("\n")}
-</calendar>`);
+    blocks.push(`<calendar_data count="${data.calendar.length}">
+${data.calendar.map((e, i) =>
+  `Termin ${i + 1}: ${e.title}
+  Start: ${new Date(e.start).toLocaleString("de-AT")}
+  Ende: ${new Date(e.end).toLocaleString("de-AT")}${e.location ? `\n  Ort: ${e.location}` : ""}`
+).join("\n---\n")}
+</calendar_data>`);
   }
 
   if (intent === "tasks_query" && data.tasks?.length) {
-    blocks.push(`<tasks>
-${data.tasks.map((t) =>
-  `[${t.completed ? "DONE" : "OPEN"}] id:${t.id} | ${t.title}${t.due ? ` | due:${t.due}` : ""}${t.notes ? ` | note:${t.notes}` : ""}`
+    blocks.push(`<tasks_data count="${data.tasks.length}">
+${data.tasks.filter(t => !t.completed).map((t, i) =>
+  `Task ${i + 1}: ${t.title}${t.due ? ` (fällig: ${t.due})` : ""}${t.notes ? `\n  Notiz: ${t.notes}` : ""}`
 ).join("\n")}
-</tasks>`);
+</tasks_data>`);
   }
 
   if (intent === "drive_query" && data.drive?.length) {
-    blocks.push(`<drive>
-${data.drive.map((f) =>
-  `id:${f.id} | ${f.name} | ${f.mimeType} | modified:${f.modifiedTime}${f.webViewLink ? ` | ${f.webViewLink}` : ""}`
+    blocks.push(`<drive_data count="${data.drive.length}">
+${data.drive.map((f, i) =>
+  `${i + 1}: ${f.isFolder ? "📁" : "📄"} ${f.name} (${f.friendlyType})`
 ).join("\n")}
-</drive>`);
+</drive_data>`);
   }
 
   if (!blocks.length) return "";
-
-  return `\n\n## LIVE GOOGLE DATA — AKTIV NUTZEN
-Die folgenden Daten wurden in Echtzeit abgerufen. Beziehe dich direkt darauf.
-Sage NICHT "ich habe keinen Zugriff" — diese Daten SIND dein Zugriff.
-
-${blocks.join("\n\n")}`;
+  return `\n\n## ECHTE GOOGLE-DATEN — JETZT AKTIV NUTZEN\n${blocks.join("\n\n")}`;
 }
 
-// ── System-Prompt ─────────────────────────────────────────────────────────────
+// ── NEXUS System-Prompt ───────────────────────────────────────────────────────
 
 function buildSystemPrompt(intent: string, agentIds: string[], googleContext: string): string {
   const agentDescriptions = agentIds
     .map((id) => {
-      const agent = AGENT_REGISTRY.find((a) => a.id === id);
-      if (!agent) return `${id}: Spezialist`;
-      return `${agent.emoji} ${agent.name} (${agent.role}): ${agent.corePurpose}`;
+      const a = AGENT_REGISTRY.find((x) => x.id === id);
+      return a ? `${a.emoji} ${a.name}: ${a.corePurpose}` : `${id}: Spezialist`;
     })
     .join("\n");
 
-  return `Du bist JARVIS, der Master-Orchestrator von Phynyx Trust Solutions — einer österreichischen KI-Agentur für KMU, die Automatisierungen, Chatbots und Dashboards liefert. CEO ist Philip Trost.
+  return `Du bist JARVIS, der Orchestrator von Phynyx Trust Solutions — einer KI-Agentur für österreichische KMU. Dein CEO ist Philip Trost. Du koordinierst spezialisierte Sub-Agenten und lieferst immer konkreten, direkt nutzbaren Output.
 
-Deine Aufgabe: Analysiere die Anfrage, koordiniere die aktivierten Sub-Agenten und liefere strukturierte, umsetzbare Ergebnisse auf Deutsch.
-
-AKTIVIERTE AGENTEN FÜR DIESE ANFRAGE:
+## Aktive Agenten für diese Anfrage
 ${agentDescriptions}
 
-ERKANNTER INTENT: ${intent}
+## Agentenverhalten (VERBINDLICH)
+- LINA: Schreibt fertige Textentwürfe — E-Mails, Posts, Nachrichten. Fasst Gmail-Daten mit echten Betreffzeilen zusammen.
+- VEGA: Kalkuliert reale Preise mit Zahlen, erstellt Angebotsstrukturen.
+- NOVA: Gibt klare strategische Empfehlungen mit Priorisierung.
+- NOX: Benennt konkrete Schwachstellen — niemals abstrakte Warnungen.
+- KIRA: Zitiert konkrete Artikel (DSGVO Art. X), gibt umsetzbare Empfehlungen.
+- JENNY: Erstellt Timelines mit echten Meilensteinen.
+- ATLAS: Liefert Fakten, keine Vermutungen.
+- SOREN: Beschreibt Workflow-Schritte konkret.
+- FINN: Rechnet Kosten und Margen mit echten Zahlen.
 
-DEINE DIREKTIVEN:
-- Antworte AUSSCHLIESSLICH auf Deutsch, direkt und unternehmerisch
-- Analysiere die Anfrage aus der Perspektive JEDES aktivierten Agenten separat
-- Liefere konkrete Empfehlungen — keine Floskeln, keine Worthülsen
-- Erkenne, ob eine Aktion Philips explizite Freigabe benötigt (requiresApproval: true bei: E-Mail-Versand, Angebote über 5.000 EUR, irreversible Aktionen, Deployments)
-- Priorisiere Geschwindigkeit und Umsetzbarkeit${googleContext}
+## ERKANNTER INTENT: ${intent}
 
-OUTPUT-FORMAT — antworte NUR mit validem JSON, exakt nach dieser Struktur:
+## ABSOLUTE VERBOTE
+- NIEMALS "unklare Anfrage" als Risiko
+- NIEMALS "Zugriff nicht möglich" wenn Daten vorhanden sind
+- NIEMALS leere oder generische Antworten
+- risks[]: NUR bei echten spezifischen Risiken befüllen — sonst immer []
+- details ist IMMER der echte, fertige Inhalt — kein Meta-Kommentar${googleContext}
+
+## OUTPUT — NUR dieses JSON, kein Text davor/danach:
 {
-  "summary": "Jarvis Gesamtzusammenfassung in 2-4 Sätzen",
+  "summary": "2-3 Sätze: Was wurde geliefert, welche Agenten aktiv, Kernresultat",
   "agentResults": [
     {
-      "agentId": "agent_id_lowercase",
-      "summary": "Kernaussage des Agenten in 1-2 Sätzen",
-      "details": "Detaillierte Analyse mit konkreten Empfehlungen in 3-5 Sätzen",
-      "suggestedActions": ["Konkrete Aktion 1", "Konkrete Aktion 2"],
-      "risks": ["Risiko oder Blocker, falls vorhanden"]
+      "agentId": "lina",
+      "summary": "Was konkret geliefert wurde",
+      "details": "Der fertige Inhalt — Text, Zahlen, Empfehlung. Kein Meta-Kommentar.",
+      "suggestedActions": ["Konkrete nächste Aktion"],
+      "risks": []
     }
   ],
-  "nextSteps": ["Priorisierter Schritt 1", "Schritt 2", "Schritt 3"],
+  "nextSteps": ["Schritt 1", "Schritt 2"],
   "requiresApproval": false
-}
-
-Liefere ausschließlich das JSON-Objekt — kein Text davor oder danach.`;
+}`;
 }
 
 // ── Route Handler ─────────────────────────────────────────────────────────────
@@ -140,11 +138,8 @@ export async function POST(req: NextRequest) {
   }
 
   let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  try { body = await req.json(); }
+  catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
 
   const validated = RequestSchema.safeParse(body);
   if (!validated.success) {
@@ -153,46 +148,45 @@ export async function POST(req: NextRequest) {
 
   const { message, intent, activatedAgents } = validated.data;
 
-  // Google-Daten serverseitig holen wenn nötig
+  // ── Google-Daten serverseitig holen ─────────────────────────────────────────
   let googleContext = "";
+  let googleData: { gmail?: GmailMessage[]; calendar?: CalendarEvent[]; tasks?: GoogleTask[]; drive?: DriveFile[] } = {};
+
   if (GOOGLE_INTENTS.has(intent)) {
     const session = await auth();
     if (session?.accessToken) {
       try {
         const [gmail, calendar, tasks, drive] = await Promise.allSettled([
-          intent === "gmail_query" || intent === "gmail_reply"
-            ? getInbox(session.accessToken, 8)
-            : Promise.resolve([]),
-          intent === "calendar_query"
-            ? getUpcomingEvents(session.accessToken, 8)
-            : Promise.resolve([]),
-          intent === "tasks_query"
-            ? getGoogleTasks(session.accessToken, 15)
-            : Promise.resolve([]),
-          intent === "drive_query"
-            ? getFolderContents(session.accessToken, "root", 8)
-            : Promise.resolve([]),
+          (intent === "gmail_query" || intent === "gmail_reply") ? getInbox(session.accessToken, 10) : Promise.resolve([]),
+          intent === "calendar_query" ? getUpcomingEvents(session.accessToken, 10) : Promise.resolve([]),
+          intent === "tasks_query" ? getGoogleTasks(session.accessToken, 15) : Promise.resolve([]),
+          intent === "drive_query" ? getFolderContents(session.accessToken, "root", 10) : Promise.resolve([]),
         ]);
 
-        googleContext = buildGoogleContextBlock(intent, {
+        googleData = {
           gmail:    gmail.status    === "fulfilled" ? gmail.value    as GmailMessage[]  : [],
           calendar: calendar.status === "fulfilled" ? calendar.value as CalendarEvent[] : [],
           tasks:    tasks.status    === "fulfilled" ? tasks.value    as GoogleTask[]    : [],
           drive:    drive.status    === "fulfilled" ? drive.value    as DriveFile[]     : [],
-        });
-      } catch {
-        // Kein Google-Kontext verfügbar — Jarvis antwortet trotzdem
+        };
+        googleContext = buildGoogleContextBlock(intent, googleData);
+      } catch (e) {
+        console.error("Google data fetch error:", e);
       }
+    } else {
+      // Kein Google-Token — Hinweis in den Prompt
+      googleContext = "\n\n## HINWEIS: Kein Google-Account verbunden. Nutzer soll Integrationen-Seite besuchen.";
     }
   }
 
+  // ── OpenAI Call ──────────────────────────────────────────────────────────────
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
   try {
     const completion = await client.chat.completions.create({
       model:           "gpt-4o-mini",
-      temperature:     0.7,
-      max_tokens:      1500,
+      temperature:     0.6,
+      max_tokens:      2000,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: buildSystemPrompt(intent, activatedAgents, googleContext) },
@@ -203,18 +197,16 @@ export async function POST(req: NextRequest) {
     const raw = completion.choices[0]?.message?.content ?? "{}";
 
     let result: {
-      summary:          string;
-      agentResults:     Array<{ agentId: string; summary: string; details: string; suggestedActions: string[]; risks: string[] }>;
-      nextSteps:        string[];
+      summary: string;
+      agentResults: Array<{ agentId: string; summary: string; details: string; suggestedActions: string[]; risks: string[] }>;
+      nextSteps: string[];
       requiresApproval: boolean;
     };
-    try {
-      result = JSON.parse(raw);
-    } catch {
-      return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 });
-    }
 
-    // ── In Supabase persistieren ─────────────────────────────────────────────
+    try { result = JSON.parse(raw); }
+    catch { return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 }); }
+
+    // ── In Supabase speichern ──────────────────────────────────────────────────
     const savedTask = await createTask({
       source:           "user",
       userMessage:      message,
@@ -227,35 +219,35 @@ export async function POST(req: NextRequest) {
     });
 
     if (savedTask) {
-      // Logs schreiben
-      await createLog({ taskId: savedTask.id, eventType: "task_created",   message: `Task erstellt: ${intent}` });
+      await createLog({ taskId: savedTask.id, eventType: "task_created", message: `Task: ${intent}` });
       for (const agentId of activatedAgents) {
         await createLog({ taskId: savedTask.id, eventType: "agent_activated", agentId, message: `${agentId} aktiviert` });
       }
-      await createLog({ taskId: savedTask.id, eventType: result.requiresApproval ? "task_completed" : "task_completed", message: result.summary.slice(0, 200) });
+      await createLog({ taskId: savedTask.id, eventType: "task_completed", message: result.summary.slice(0, 200) });
 
-      // Approval anlegen falls nötig
       if (result.requiresApproval) {
-        const handoffEntry = { approvalReason: "Freigabe durch Jarvis angefordert" };
         const approval: Omit<Approval, "id" | "createdAt"> = {
-          taskId:         savedTask.id,
-          title:          `Freigabe: ${intent.replace(/_/g, " ")}`,
-          description:    handoffEntry.approvalReason,
-          actionType:     "trigger_external_api",
-          riskLevel:      "high",
-          status:         "open",
+          taskId: savedTask.id,
+          title: `Freigabe: ${intent.replace(/_/g, " ")}`,
+          description: "Freigabe durch Jarvis angefordert",
+          actionType: "trigger_external_api",
+          riskLevel: "high",
+          status: "open",
           involvedAgents: activatedAgents,
         };
         await createApproval(approval);
-        await createLog({ taskId: savedTask.id, eventType: "approval_requested", message: `Freigabe angefordert für: ${intent}` });
       }
     }
 
-    return NextResponse.json({ success: true, data: result, taskId: savedTask?.id });
+    return NextResponse.json({
+      success:    true,
+      data:       result,
+      googleData,             // Raw Google-Daten für Rich-Display im Chat
+      taskId:     savedTask?.id,
+    });
 
   } catch (err) {
     if (err instanceof OpenAI.APIError) {
-      console.error("OpenAI API Error:", err.status, err.message);
       return NextResponse.json({ error: "AI service unavailable", details: err.message }, { status: 502 });
     }
     console.error("Unexpected error:", err);
