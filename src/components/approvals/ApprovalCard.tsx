@@ -158,13 +158,28 @@ interface ApprovalCardProps {
   onDelete?:       (id: string) => void;
 }
 
-export function ApprovalCard({ approval, onStatusChange }: ApprovalCardProps) {
-  const [localStatus, setLocalStatus] = useState<Approval["status"]>(approval.status);
-  const [executing,   setExecuting]   = useState(false);
-  const [result,      setResult]      = useState<{ type: string; message: string; data?: unknown } | null>(null);
+export function ApprovalCard({ approval, onStatusChange, onDelete }: ApprovalCardProps) {
+  const [localStatus,    setLocalStatus]    = useState<Approval["status"]>(approval.status);
+  const [executing,      setExecuting]      = useState(false);
+  const [deleting,       setDeleting]       = useState(false);
+  const [deleted,        setDeleted]        = useState(false);
+  const [result,         setResult]         = useState<{ type: string; message: string; data?: unknown } | null>(null);
   const [confirmApprove, setConfirmApprove] = useState(false);
   const [confirmReject,  setConfirmReject]  = useState(false);
   const [confirmDefer,   setConfirmDefer]   = useState(false);
+  const [confirmDelete,  setConfirmDelete]  = useState(false);
+
+  if (deleted) return null;
+
+  async function doDelete() {
+    setConfirmDelete(false);
+    setDeleting(true);
+    try {
+      await fetch(`/api/approvals/${approval.id}`, { method: "DELETE", credentials: "include" });
+      setDeleted(true);
+      onDelete?.(approval.id);
+    } finally { setDeleting(false); }
+  }
 
   const risk       = riskConfig[approval.riskLevel];
   const status     = statusConfig[localStatus];
