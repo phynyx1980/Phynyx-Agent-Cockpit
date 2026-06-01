@@ -273,11 +273,12 @@ function MailRow({
   onRemove: (id: string) => void;
   onRead:   (id: string) => void;
 }) {
-  const [acting, setActing] = useState<"read" | "delete" | null>(null);
+  const [acting,        setActing]        = useState<"read" | "delete" | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmRead,   setConfirmRead]   = useState(false);
 
-  async function markRead(e: React.MouseEvent) {
-    e.stopPropagation();
-    if (!mail.unread || acting) return;
+  async function doMarkRead() {
+    setConfirmRead(false);
     setActing("read");
     try {
       await fetch(`/api/google/gmail/${mail.id}`, {
@@ -289,9 +290,8 @@ function MailRow({
     } finally { setActing(null); }
   }
 
-  async function deleteMail(e: React.MouseEvent) {
-    e.stopPropagation();
-    if (acting) return;
+  async function doDelete() {
+    setConfirmDelete(false);
     setActing("delete");
     try {
       await fetch(`/api/google/gmail/${mail.id}`, { method: "DELETE", credentials: "include" });
@@ -300,36 +300,56 @@ function MailRow({
   }
 
   return (
-    <div className="flex items-start gap-3 px-4 py-3 hover:bg-[#111111] transition-colors group">
-      {mail.unread
-        ? <span className="w-1.5 h-1.5 rounded-full bg-[#CC1100] mt-1.5 shrink-0" />
-        : <span className="w-1.5 h-1.5 shrink-0" />}
-      <div className="flex-1 min-w-0">
-        <p className={`text-xs truncate ${mail.unread ? "text-white font-semibold" : "text-[#cccccc]"}`}>
-          {mail.subject}
-        </p>
-        <p className="text-[10px] text-[#999999] truncate mt-0.5">{mail.from.split("<")[0].trim()}</p>
-        <p className="text-[10px] text-[#555555] mt-0.5 line-clamp-1">{mail.snippet}</p>
-      </div>
-      {/* Aktionen — erscheinen beim Hover */}
-      <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-        {mail.unread && (
+    <>
+      <div className="flex items-start gap-3 px-4 py-3 hover:bg-[#111111] transition-colors group">
+        {mail.unread
+          ? <span className="w-1.5 h-1.5 rounded-full bg-[#CC1100] mt-1.5 shrink-0" />
+          : <span className="w-1.5 h-1.5 shrink-0" />}
+        <div className="flex-1 min-w-0">
+          <p className={`text-xs truncate ${mail.unread ? "text-white font-semibold" : "text-[#cccccc]"}`}>
+            {mail.subject}
+          </p>
+          <p className="text-[10px] text-[#999999] truncate mt-0.5">{mail.from.split("<")[0].trim()}</p>
+          <p className="text-[10px] text-[#555555] mt-0.5 line-clamp-1">{mail.snippet}</p>
+        </div>
+        {/* Aktionen — erscheinen beim Hover */}
+        <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          {mail.unread && (
+            <button
+              onClick={() => setConfirmRead(true)}
+              title="Als gelesen markieren"
+              className="p-1.5 rounded-lg hover:bg-[#22C55E]/15 text-[#555555] hover:text-[#22C55E] transition-colors"
+            >
+              {acting === "read" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCheck className="w-3.5 h-3.5" />}
+            </button>
+          )}
           <button
-            onClick={markRead}
-            title="Als gelesen markieren"
-            className="p-1.5 rounded-lg hover:bg-[#22C55E]/15 text-[#555555] hover:text-[#22C55E] transition-colors"
+            onClick={() => setConfirmDelete(true)}
+            title="In Papierkorb"
+            className="p-1.5 rounded-lg hover:bg-[#CC1100]/15 text-[#555555] hover:text-[#CC1100] transition-colors"
           >
-            {acting === "read" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCheck className="w-3.5 h-3.5" />}
+            {acting === "delete" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
           </button>
-        )}
-        <button
-          onClick={deleteMail}
-          title="In Papierkorb"
-          className="p-1.5 rounded-lg hover:bg-[#CC1100]/15 text-[#555555] hover:text-[#CC1100] transition-colors"
-        >
-          {acting === "delete" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-        </button>
+        </div>
       </div>
-    </div>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Mail löschen?"
+        description={`"${mail.subject}" wird in den Gmail-Papierkorb verschoben.`}
+        confirmLabel="Ja, löschen"
+        danger
+        onConfirm={doDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
+      <ConfirmDialog
+        open={confirmRead}
+        title="Als gelesen markieren?"
+        description={`"${mail.subject}" wird als gelesen markiert.`}
+        confirmLabel="Ja, markieren"
+        onConfirm={doMarkRead}
+        onCancel={() => setConfirmRead(false)}
+      />
+    </>
   );
 }
