@@ -240,10 +240,45 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Draft-Daten aus Agentenergebnissen extrahieren (Lina/Jenny können Entwürfe vorbereiten)
+    const draftData: {
+      emailDraft?:    { to: string; subject: string; body: string };
+      calendarDraft?: { title: string; start: string; end: string; description?: string };
+    } = {};
+
+    for (const r of result.agentResults ?? []) {
+      // Lina — E-Mail-Entwurf erkennen
+      if (r.agentId === "lina" && r.details && result.requiresApproval) {
+        const toMatch      = r.details.match(/An:\s*(.+@.+\..+)/i);
+        const subjectMatch = r.details.match(/Betreff:\s*(.+)/i);
+        if (toMatch && subjectMatch) {
+          draftData.emailDraft = {
+            to:      toMatch[1].trim(),
+            subject: subjectMatch[1].trim(),
+            body:    r.details,
+          };
+        }
+      }
+      // Jenny — Kalender-Entwurf erkennen
+      if (r.agentId === "jenny" && r.details && result.requiresApproval) {
+        const titleMatch = r.details.match(/Titel:\s*(.+)/i);
+        const startMatch = r.details.match(/Start:\s*(.+)/i);
+        const endMatch   = r.details.match(/Ende:\s*(.+)/i);
+        if (titleMatch && startMatch) {
+          draftData.calendarDraft = {
+            title: titleMatch[1].trim(),
+            start: startMatch[1].trim(),
+            end:   endMatch?.[1].trim() ?? startMatch[1].trim(),
+          };
+        }
+      }
+    }
+
     return NextResponse.json({
       success:    true,
       data:       result,
-      googleData,             // Raw Google-Daten für Rich-Display im Chat
+      googleData,
+      draftData:  Object.keys(draftData).length > 0 ? draftData : undefined,
       taskId:     savedTask?.id,
     });
 
