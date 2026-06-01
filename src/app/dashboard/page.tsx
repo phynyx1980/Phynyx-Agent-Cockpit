@@ -4,7 +4,7 @@ import {
   Clock, Zap, TrendingUp, TrendingDown, AlertTriangle,
 } from "lucide-react";
 import Link from "next/link";
-import { mockDataSource, getAgentStats, getTaskStats, getApprovalStats, getRecentActivity } from "@/lib/dashboard-stats";
+import { liveDataSource, getAgentStats, getTaskStats, getApprovalStats, getRecentActivity } from "@/lib/dashboard-stats";
 import type { ActivityEventType } from "@/lib/dashboard-stats";
 import { getAgentById } from "@/lib/agents/agent-registry";
 
