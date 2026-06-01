@@ -97,6 +97,23 @@ export async function getEmailDetail(accessToken: string, messageId: string): Pr
   }
 }
 
+// Als gelesen markieren
+export async function markAsRead(accessToken: string, messageId: string): Promise<void> {
+  const auth  = getGoogleClient(accessToken);
+  const gmail = google.gmail({ version: "v1", auth });
+  await gmail.users.messages.modify({
+    userId: "me", id: messageId,
+    requestBody: { removeLabelIds: ["UNREAD"] },
+  });
+}
+
+// In Papierkorb verschieben
+export async function trashEmail(accessToken: string, messageId: string): Promise<void> {
+  const auth  = getGoogleClient(accessToken);
+  const gmail = google.gmail({ version: "v1", auth });
+  await gmail.users.messages.trash({ userId: "me", id: messageId });
+}
+
 // Mail senden
 export async function sendEmail(
   accessToken: string, to: string, subject: string, body: string,
