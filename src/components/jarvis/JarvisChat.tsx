@@ -59,10 +59,15 @@ const relativeDay = (iso: string) => {
 
 // ── Aufklappbare E-Mail-Karte ─────────────────────────────────────────────────
 
-function EmailCard({ mail }: { mail: GmailMessage }) {
+function EmailCard({ mail, onRemove }: { mail: GmailMessage; onRemove?: (id: string) => void }) {
   const [open,    setOpen]    = useState(false);
   const [body,    setBody]    = useState<string | null>(mail.body ?? null);
   const [loading, setLoading] = useState(false);
+  const [unread,  setUnread]  = useState(mail.unread);
+  const [deleted, setDeleted] = useState(false);
+  const [acting,  setActing]  = useState<"read" | "delete" | null>(null);
+
+  if (deleted) return null;
 
   async function loadBody() {
     if (body !== null) { setOpen((v) => !v); return; }
@@ -75,28 +80,71 @@ function EmailCard({ mail }: { mail: GmailMessage }) {
     finally { setLoading(false); setOpen(true); }
   }
 
+  async function markRead(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!unread || acting) return;
+    setActing("read");
+    try {
+      await fetch(`/api/google/gmail/${mail.id}`, {
+        method: "PATCH", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "markRead" }),
+      });
+      setUnread(false);
+    } finally { setActing(null); }
+  }
+
+  async function deleteMail(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (acting) return;
+    setActing("delete");
+    try {
+      await fetch(`/api/google/gmail/${mail.id}`, { method: "DELETE", credentials: "include" });
+      setDeleted(true);
+      onRemove?.(mail.id);
+    } catch { setActing(null); }
+  }
+
   return (
     <div className={`border-b border-[#1A1A1A] last:border-0 ${open ? "bg-[#0D0D0D]" : ""}`}>
-      <button
-        onClick={loadBody}
-        className="w-full flex items-start gap-3 px-3 py-2.5 hover:bg-[#0F0F0F] transition-colors text-left"
-      >
-        {mail.unread && <span className="w-1.5 h-1.5 rounded-full bg-[#CC1100] mt-1.5 shrink-0" />}
-        {!mail.unread && <span className="w-1.5 h-1.5 shrink-0" />}
-        <div className="flex-1 min-w-0">
-          <p className={`text-xs truncate ${mail.unread ? "text-white font-semibold" : "text-[#cccccc]"}`}>
-            {mail.subject}
-          </p>
-          <p className="text-[10px] text-[#999999] truncate mt-0.5">
-            {mail.from.split("<")[0].trim()}
-          </p>
-          {!open && <p className="text-[10px] text-[#555555] line-clamp-1 mt-0.5">{mail.snippet}</p>}
+      <div className="flex items-start gap-2 px-3 py-2.5 hover:bg-[#0F0F0F] transition-colors group">
+        {/* Klickbereich: Mail öffnen */}
+        <button onClick={loadBody} className="flex items-start gap-2 flex-1 min-w-0 text-left">
+          {unread
+            ? <span className="w-1.5 h-1.5 rounded-full bg-[#CC1100] mt-1.5 shrink-0" />
+            : <span className="w-1.5 h-1.5 shrink-0" />}
+          <div className="flex-1 min-w-0">
+            <p className={`text-xs truncate ${unread ? "text-white font-semibold" : "text-[#cccccc]"}`}>
+              {mail.subject}
+            </p>
+            <p className="text-[10px] text-[#999999] truncate mt-0.5">{mail.from.split("<")[0].trim()}</p>
+            {!open && <p className="text-[10px] text-[#555555] line-clamp-1 mt-0.5">{mail.snippet}</p>}
+          </div>
+        </button>
+
+        {/* Aktions-Buttons */}
+        <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          {unread && (
+            <button
+              onClick={markRead}
+              title="Als gelesen markieren"
+              className="p-1 rounded hover:bg-[#22C55E]/20 text-[#555555] hover:text-[#22C55E] transition-colors"
+            >
+              {acting === "read" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCheck className="w-3.5 h-3.5" />}
+            </button>
+          )}
+          <button
+            onClick={deleteMail}
+            title="In Papierkorb"
+            className="p-1 rounded hover:bg-[#CC1100]/20 text-[#555555] hover:text-[#CC1100] transition-colors"
+          >
+            {acting === "delete" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+          </button>
+          <button onClick={loadBody} className="p-1 text-[#555555] hover:text-white transition-colors">
+            {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : open ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
         </div>
-        <div className="shrink-0 flex items-center gap-1">
-          {loading && <Loader2 className="w-3 h-3 text-[#999999] animate-spin" />}
-          {open ? <ChevronUp className="w-3 h-3 text-[#555555]" /> : <ChevronDown className="w-3 h-3 text-[#555555]" />}
-        </div>
-      </button>
+      </div>
 
       {open && body !== null && (
         <div className="px-3 pb-3">
