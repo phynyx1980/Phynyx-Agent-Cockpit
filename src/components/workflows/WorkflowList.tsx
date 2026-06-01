@@ -19,9 +19,14 @@ interface WorkflowListProps {
   logs: Record<string, WorkflowLog[]>;
 }
 
-export function WorkflowList({ tasks, logs }: WorkflowListProps) {
+export function WorkflowList({ tasks: initial, logs }: WorkflowListProps) {
+  const [tasks,  setTasks]  = useState(initial);
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
+
+  function handleDelete(id: string) {
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+  }
 
   const filtered = useMemo(() => {
     let result = tasks;
