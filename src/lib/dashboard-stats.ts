@@ -1,9 +1,7 @@
 import type { AgentProfile, AgentTask, Approval, RiskLevel } from "@/lib/agents/agent-types";
 import { AGENT_REGISTRY } from "@/lib/agents/agent-registry";
-import { MOCK_TASKS } from "@/lib/mock-data/workflows";
-import { MOCK_APPROVALS } from "@/lib/mock-data/approvals";
 
-// ── Adapter-Interface (ORION) — tausche Mock gegen Supabase ohne UI-Änderung ──
+// ── Adapter-Interface (ORION) — später gegen Supabase-Adapter tauschen ────────
 
 export interface DashboardDataSource {
   getAgents:    () => AgentProfile[];
@@ -11,10 +9,11 @@ export interface DashboardDataSource {
   getApprovals: () => Approval[];
 }
 
-export const mockDataSource: DashboardDataSource = {
+// Live-Quelle: Agenten aus Registry, Tasks/Approvals aus zukünftiger DB
+export const liveDataSource: DashboardDataSource = {
   getAgents:    () => AGENT_REGISTRY,
-  getTasks:     () => MOCK_TASKS,
-  getApprovals: () => MOCK_APPROVALS,
+  getTasks:     () => [],
+  getApprovals: () => [],
 };
 
 // ── Stats-Typen ───────────────────────────────────────────────────────────────
