@@ -31,6 +31,7 @@ export function WorkflowList({ tasks: initial, logs }: WorkflowListProps) {
   const filtered = useMemo(() => {
     let result = tasks;
 
+
     if (filter === "active") {
       result = result.filter(
         (t) => t.status === "in_progress" || t.status === "routing" || t.status === "pending"
