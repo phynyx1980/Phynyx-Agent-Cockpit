@@ -133,6 +133,42 @@ export const HANDOFF_MATRIX: Record<Intent, HandoffEntry> = {
     requiresApproval: false,
     priority: "low",
   },
+  gmail_query: {
+    intent: "gmail_query",
+    primaryAgent: "lina",
+    supportingAgents: ["jarvis"],
+    requiresApproval: false,
+    priority: "medium",
+  },
+  gmail_reply: {
+    intent: "gmail_reply",
+    primaryAgent: "lina",
+    supportingAgents: ["vega", "kira"],
+    requiresApproval: true,
+    approvalReason: "Antwortmail vor dem Senden freigeben",
+    priority: "high",
+  },
+  calendar_query: {
+    intent: "calendar_query",
+    primaryAgent: "jenny",
+    supportingAgents: ["jarvis"],
+    requiresApproval: false,
+    priority: "low",
+  },
+  tasks_query: {
+    intent: "tasks_query",
+    primaryAgent: "jenny",
+    supportingAgents: ["jarvis"],
+    requiresApproval: false,
+    priority: "low",
+  },
+  drive_query: {
+    intent: "drive_query",
+    primaryAgent: "atlas",
+    supportingAgents: ["jarvis"],
+    requiresApproval: false,
+    priority: "low",
+  },
 };
 
 export function getHandoffEntry(intent: Intent): HandoffEntry {
