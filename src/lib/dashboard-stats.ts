@@ -1,7 +1,7 @@
 import type { AgentProfile, AgentTask, Approval, RiskLevel } from "@/lib/agents/agent-types";
 import { AGENT_REGISTRY } from "@/lib/agents/agent-registry";
 
-// ── Adapter-Interface (ORION) — später gegen Supabase-Adapter tauschen ────────
+// ── Adapter-Interface (ORION) ─────────────────────────────────────────────────
 
 export interface DashboardDataSource {
   getAgents:    () => AgentProfile[];
@@ -9,12 +9,14 @@ export interface DashboardDataSource {
   getApprovals: () => Approval[];
 }
 
-// Live-Quelle: Agenten aus Registry, Tasks/Approvals aus zukünftiger DB
-export const liveDataSource: DashboardDataSource = {
-  getAgents:    () => AGENT_REGISTRY,
-  getTasks:     () => [],
-  getApprovals: () => [],
-};
+// Synchrone Quelle für Server Components (Daten werden vorher geladen)
+export function buildDataSource(tasks: AgentTask[], approvals: Approval[]): DashboardDataSource {
+  return {
+    getAgents:    () => AGENT_REGISTRY,
+    getTasks:     () => tasks,
+    getApprovals: () => approvals,
+  };
+}
 
 // ── Stats-Typen ───────────────────────────────────────────────────────────────
 
