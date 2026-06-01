@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /Users/phynyxtrust/phynyx-agent-cockpit && git diff --quiet && git diff --cached --quiet || (git add -A && git commit -m \"chore: auto-update $(date '+%Y-%m-%d %H:%M')\" && git push origin main)"
+          }
+        ]
+      }
+    ]
+  }
+}
