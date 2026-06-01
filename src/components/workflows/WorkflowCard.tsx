@@ -4,19 +4,15 @@ import { useState } from "react";
 import type { AgentTask, WorkflowLog } from "@/lib/agents/agent-types";
 import { getAgentById } from "@/lib/agents/agent-registry";
 import {
-  Clock,
-  CheckCircle,
-  ShieldCheck,
-  AlertTriangle,
-  Loader2,
-  XCircle,
-  ChevronDown,
-  ChevronUp,
+  Clock, CheckCircle, ShieldCheck, AlertTriangle,
+  Loader2, XCircle, ChevronDown, ChevronUp, Trash2,
 } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 interface WorkflowCardProps {
-  task: AgentTask;
-  logs?: WorkflowLog[];
+  task:     AgentTask;
+  logs?:    WorkflowLog[];
+  onDelete?: (id: string) => void;
 }
 
 const statusConfig = {
