@@ -197,6 +197,30 @@ export function WorkflowCard({ task, logs = [], onDelete }: WorkflowCardProps) {
           )}
         </>
       )}
+
+      {/* Delete-Button — immer sichtbar */}
+      <div className="flex justify-end px-4 py-2 border-t border-[#2A2A2A]">
+        <button
+          onClick={() => setConfirm(true)}
+          disabled={deleting}
+          className="flex items-center gap-1.5 text-[11px] text-[#555555] hover:text-[#CC1100] transition-colors disabled:opacity-40"
+        >
+          {deleting
+            ? <Loader2 className="w-3 h-3 animate-spin" />
+            : <Trash2 className="w-3 h-3" />}
+          Löschen
+        </button>
+      </div>
+
+      <ConfirmDialog
+        open={confirm}
+        title="Task löschen?"
+        description={`"${task.userMessage.slice(0, 80)}…" wird dauerhaft gelöscht.`}
+        confirmLabel="Ja, löschen"
+        danger
+        onConfirm={doDelete}
+        onCancel={() => setConfirm(false)}
+      />
     </div>
   );
 }
