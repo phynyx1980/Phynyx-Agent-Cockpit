@@ -257,6 +257,15 @@ export function ApprovalCard({ approval, onStatusChange, onDelete }: ApprovalCar
             </div>
             <p className="text-sm font-medium text-white mt-1.5 leading-snug">{approval.title}</p>
           </div>
+          {/* Delete-Button */}
+          <button
+            onClick={() => setConfirmDelete(true)}
+            disabled={deleting}
+            title="Löschen"
+            className="shrink-0 p-1.5 rounded-lg text-[#555555] hover:text-[#CC1100] hover:bg-[#CC1100]/10 transition-colors disabled:opacity-40"
+          >
+            {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+          </button>
         </div>
 
         <p className="text-xs text-[#999999] leading-relaxed">{approval.description}</p>
