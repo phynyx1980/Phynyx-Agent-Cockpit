@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
-  Send, ShieldCheck, ChevronRight, Loader2,
-  Mail, Calendar, CheckSquare, HardDrive, ExternalLink,
+  Send, ShieldCheck, ChevronRight, Loader2, Mail, Calendar,
+  CheckSquare, HardDrive, ExternalLink, Plus, MessageSquare,
+  ChevronDown, ChevronUp, Clock,
 } from "lucide-react";
 import { detectIntent } from "@/lib/agents/intent-router";
 import { getAllAgentsForIntent, getHandoffEntry } from "@/lib/agents/handoff-matrix";
@@ -25,30 +26,92 @@ interface GoogleData {
 }
 
 interface ChatMessage {
-  id:             string;
-  role:           "user" | "jarvis";
-  content:        string;
+  id:              string;
+  role:            "user" | "jarvis";
+  content:         string;
   jarvisResponse?: JarvisResponse;
-  googleData?:    GoogleData;
-  timestamp:      Date;
+  googleData?:     GoogleData;
+  timestamp:       Date;
+}
+
+interface ChatSession {
+  id:        string;
+  title:     string;
+  updatedAt: string;
 }
 
 // ── Hilfsfunktionen ───────────────────────────────────────────────────────────
 
-function formatTime(date: Date) {
-  return date.toLocaleTimeString("de-AT", { hour: "2-digit", minute: "2-digit" });
-}
-
-function formatDate(iso: string) {
+const formatTime   = (d: Date) => d.toLocaleTimeString("de-AT", { hour: "2-digit", minute: "2-digit" });
+const formatDateDE = (iso: string) => {
+  try { return new Date(iso).toLocaleString("de-AT", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }); }
+  catch { return iso; }
+};
+const relativeDay = (iso: string) => {
   try {
-    return new Date(iso).toLocaleString("de-AT", {
-      weekday: "short", day: "2-digit", month: "short",
-      hour: "2-digit", minute: "2-digit",
-    });
+    const d = new Date(iso), now = new Date();
+    const diff = Math.floor((now.getTime() - d.getTime()) / 86400000);
+    if (diff === 0) return "Heute";
+    if (diff === 1) return "Gestern";
+    return d.toLocaleDateString("de-AT", { day: "2-digit", month: "short" });
   } catch { return iso; }
+};
+
+// ── Aufklappbare E-Mail-Karte ─────────────────────────────────────────────────
+
+function EmailCard({ mail }: { mail: GmailMessage }) {
+  const [open,    setOpen]    = useState(false);
+  const [body,    setBody]    = useState<string | null>(mail.body ?? null);
+  const [loading, setLoading] = useState(false);
+
+  async function loadBody() {
+    if (body !== null) { setOpen((v) => !v); return; }
+    setLoading(true);
+    try {
+      const res  = await fetch(`/api/google/gmail/${mail.id}`, { credentials: "include" });
+      const json = await res.json();
+      if (json.success) setBody(json.data.body ?? "(Kein Inhalt)");
+    } catch { setBody("(Fehler beim Laden)"); }
+    finally { setLoading(false); setOpen(true); }
+  }
+
+  return (
+    <div className={`border-b border-[#1A1A1A] last:border-0 ${open ? "bg-[#0D0D0D]" : ""}`}>
+      <button
+        onClick={loadBody}
+        className="w-full flex items-start gap-3 px-3 py-2.5 hover:bg-[#0F0F0F] transition-colors text-left"
+      >
+        {mail.unread && <span className="w-1.5 h-1.5 rounded-full bg-[#CC1100] mt-1.5 shrink-0" />}
+        {!mail.unread && <span className="w-1.5 h-1.5 shrink-0" />}
+        <div className="flex-1 min-w-0">
+          <p className={`text-xs truncate ${mail.unread ? "text-white font-semibold" : "text-[#cccccc]"}`}>
+            {mail.subject}
+          </p>
+          <p className="text-[10px] text-[#999999] truncate mt-0.5">
+            {mail.from.split("<")[0].trim()}
+          </p>
+          {!open && <p className="text-[10px] text-[#555555] line-clamp-1 mt-0.5">{mail.snippet}</p>}
+        </div>
+        <div className="shrink-0 flex items-center gap-1">
+          {loading && <Loader2 className="w-3 h-3 text-[#999999] animate-spin" />}
+          {open ? <ChevronUp className="w-3 h-3 text-[#555555]" /> : <ChevronDown className="w-3 h-3 text-[#555555]" />}
+        </div>
+      </button>
+
+      {open && body !== null && (
+        <div className="px-3 pb-3">
+          <div className="rounded-lg bg-[#111111] border border-[#2A2A2A] p-3">
+            <p className="text-xs text-[#cccccc] leading-relaxed whitespace-pre-wrap break-words max-h-64 overflow-y-auto">
+              {body || "(Kein Inhalt)"}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
-// ── Rich Google-Content direkt im Chat ───────────────────────────────────────
+// ── Rich Google-Content im Chat ───────────────────────────────────────────────
 
 function GmailBlock({ messages }: { messages: GmailMessage[] }) {
   if (!messages.length) return null;
@@ -56,29 +119,15 @@ function GmailBlock({ messages }: { messages: GmailMessage[] }) {
     <div className="rounded-xl border border-[#2A2A2A] overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 bg-[#111111] border-b border-[#2A2A2A]">
         <Mail className="w-3.5 h-3.5 text-[#CC1100]" />
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-white">
-          Gmail · {messages.length} Mails
-        </span>
-        {messages.filter(m => m.unread).length > 0 && (
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-white">Gmail · {messages.length} Mails</span>
+        {messages.filter((m) => m.unread).length > 0 && (
           <span className="px-1.5 py-0.5 rounded-full bg-[#CC1100] text-white text-[10px] font-bold">
-            {messages.filter(m => m.unread).length} ungelesen
+            {messages.filter((m) => m.unread).length} neu
           </span>
         )}
+        <span className="ml-auto text-[10px] text-[#555555]">Klicken zum Öffnen</span>
       </div>
-      {messages.map((mail) => (
-        <div key={mail.id} className="flex items-start gap-3 px-3 py-2.5 border-b border-[#1A1A1A] last:border-0 hover:bg-[#0F0F0F] transition-colors">
-          {mail.unread && <span className="w-1.5 h-1.5 rounded-full bg-[#CC1100] mt-1.5 shrink-0" />}
-          <div className="flex-1 min-w-0">
-            <p className={`text-xs truncate ${mail.unread ? "text-white font-semibold" : "text-[#cccccc]"}`}>
-              {mail.subject}
-            </p>
-            <p className="text-[10px] text-[#999999] truncate mt-0.5">
-              {mail.from.split("<")[0].trim()}
-            </p>
-            <p className="text-[10px] text-[#555555] line-clamp-1 mt-0.5">{mail.snippet}</p>
-          </div>
-        </div>
-      ))}
+      {messages.map((mail) => <EmailCard key={mail.id} mail={mail} />)}
     </div>
   );
 }
@@ -89,16 +138,14 @@ function CalendarBlock({ events }: { events: CalendarEvent[] }) {
     <div className="rounded-xl border border-[#2A2A2A] overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 bg-[#111111] border-b border-[#2A2A2A]">
         <Calendar className="w-3.5 h-3.5 text-[#C9A84C]" />
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-white">
-          Kalender · {events.length} Termine
-        </span>
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-white">Kalender · {events.length} Termine</span>
       </div>
       {events.map((event) => (
-        <div key={event.id} className="flex items-start gap-3 px-3 py-2.5 border-b border-[#1A1A1A] last:border-0 hover:bg-[#0F0F0F] transition-colors">
+        <div key={event.id} className="flex items-start gap-3 px-3 py-2.5 border-b border-[#1A1A1A] last:border-0 hover:bg-[#0F0F0F]">
           <div className="w-1 self-stretch rounded-full bg-[#C9A84C] shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-white font-medium truncate">{event.title}</p>
-            <p className="text-[10px] text-[#C9A84C] mt-0.5">{formatDate(event.start)}</p>
+            <p className="text-xs text-white font-medium">{event.title}</p>
+            <p className="text-[10px] text-[#C9A84C] mt-0.5">{formatDateDE(event.start)}</p>
             {event.location && <p className="text-[10px] text-[#555555] truncate mt-0.5">{event.location}</p>}
           </div>
           {event.link && (
@@ -113,21 +160,19 @@ function CalendarBlock({ events }: { events: CalendarEvent[] }) {
 }
 
 function TasksBlock({ tasks }: { tasks: GoogleTask[] }) {
-  const open = tasks.filter(t => !t.completed);
+  const open = tasks.filter((t) => !t.completed);
   if (!open.length) return null;
   return (
     <div className="rounded-xl border border-[#2A2A2A] overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 bg-[#111111] border-b border-[#2A2A2A]">
         <CheckSquare className="w-3.5 h-3.5 text-[#22C55E]" />
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-white">
-          Tasks · {open.length} offen
-        </span>
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-white">Tasks · {open.length} offen</span>
       </div>
       {open.map((task) => (
         <div key={task.id} className="flex items-center gap-3 px-3 py-2.5 border-b border-[#1A1A1A] last:border-0">
           <div className="w-3 h-3 rounded-full border border-[#2A2A2A] shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-white truncate">{task.title}</p>
+            <p className="text-xs text-white">{task.title}</p>
             {task.due && <p className="text-[10px] text-[#999999] mt-0.5">fällig: {task.due}</p>}
           </div>
         </div>
@@ -142,13 +187,11 @@ function DriveBlock({ files }: { files: DriveFile[] }) {
     <div className="rounded-xl border border-[#2A2A2A] overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 bg-[#111111] border-b border-[#2A2A2A]">
         <HardDrive className="w-3.5 h-3.5 text-[#3B82F6]" />
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-white">
-          Drive · {files.length} Einträge
-        </span>
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-white">Drive · {files.length} Einträge</span>
       </div>
       {files.map((file) => (
         <div key={file.id} className="flex items-center gap-3 px-3 py-2.5 border-b border-[#1A1A1A] last:border-0 hover:bg-[#0F0F0F]">
-          <span className="text-sm shrink-0">{file.isFolder ? "📁" : "📄"}</span>
+          <span className="text-sm">{file.isFolder ? "📁" : "📄"}</span>
           <div className="flex-1 min-w-0">
             <p className="text-xs text-white truncate">{file.name}</p>
             <p className="text-[10px] text-[#555555] mt-0.5">{file.friendlyType}</p>
@@ -164,9 +207,9 @@ function DriveBlock({ files }: { files: DriveFile[] }) {
   );
 }
 
-// ── Agent-Aktivierungs-Bar ────────────────────────────────────────────────────
+// ── Agent Bar ─────────────────────────────────────────────────────────────────
 
-function AgentActivationBar({ agentIds }: { agentIds: string[] }) {
+function AgentBar({ agentIds }: { agentIds: string[] }) {
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <span className="text-[10px] text-[#999999] uppercase tracking-[0.1em]">Aktiviert:</span>
@@ -174,8 +217,7 @@ function AgentActivationBar({ agentIds }: { agentIds: string[] }) {
         const agent = getAgentById(id);
         return (
           <span key={id} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#1A1A1A] border border-[#2A2A2A] text-[10px] text-[#cccccc]">
-            <span>{agent?.emoji ?? "🤖"}</span>
-            <span>{agent?.name ?? id}</span>
+            {agent?.emoji ?? "🤖"} {agent?.name ?? id}
           </span>
         );
       })}
@@ -187,72 +229,60 @@ function AgentActivationBar({ agentIds }: { agentIds: string[] }) {
 
 function JarvisResponseBubble({ response, googleData }: { response: JarvisResponse; googleData?: GoogleData }) {
   const [showAll, setShowAll] = useState(false);
-  const visibleResults = showAll ? response.results : response.results.slice(0, 3);
+  const visible = showAll ? response.results : response.results.slice(0, 3);
 
   return (
     <div className="space-y-3">
-      <AgentActivationBar agentIds={response.activatedAgents} />
+      <AgentBar agentIds={response.activatedAgents} />
 
-      {/* Jarvis Summary */}
-      <div
-        className="px-4 py-3 rounded-xl border text-sm text-white leading-relaxed"
-        style={{ background: "linear-gradient(135deg, #1A0A0A 0%, #1A1A1A 100%)", borderColor: "#CC1100", boxShadow: "0 0 15px rgba(204,17,0,0.06)" }}
-      >
+      <div className="px-4 py-3 rounded-xl border" style={{ background: "linear-gradient(135deg,#1A0A0A,#1A1A1A)", borderColor: "#CC1100", boxShadow: "0 0 15px rgba(204,17,0,0.06)" }}>
         <div className="flex items-start gap-2.5">
           <span className="text-lg shrink-0 mt-0.5">🧠</span>
-          <p
-            className="text-[13px] leading-relaxed text-[#e0e0e0]"
-            dangerouslySetInnerHTML={{
-              __html: response.summary
-                .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white">$1</strong>')
-                .replace(/⚠️/g, '<span class="text-[#C9A84C]">⚠️</span>')
-                .replace(/✅/g, '<span class="text-[#22C55E]">✅</span>'),
-            }}
+          <p className="text-[13px] leading-relaxed text-[#e0e0e0]"
+            dangerouslySetInnerHTML={{ __html: response.summary
+              .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white">$1</strong>')
+              .replace(/⚠️/g, '<span class="text-[#C9A84C]">⚠️</span>')
+              .replace(/✅/g, '<span class="text-[#22C55E]">✅</span>') }}
           />
         </div>
       </div>
 
-      {/* Google Rich Content direkt im Chat */}
+      {/* Google Rich Content */}
       {googleData?.gmail    && googleData.gmail.length    > 0 && <GmailBlock    messages={googleData.gmail} />}
       {googleData?.calendar && googleData.calendar.length > 0 && <CalendarBlock events={googleData.calendar} />}
       {googleData?.tasks    && googleData.tasks.length    > 0 && <TasksBlock    tasks={googleData.tasks} />}
       {googleData?.drive    && googleData.drive.length    > 0 && <DriveBlock    files={googleData.drive} />}
 
-      {/* Freigabe-Banner */}
       {response.approvalRequired && response.approvals.length > 0 && (
         <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-[#CC1100]/40 bg-[#CC1100]/8">
           <ShieldCheck className="w-4 h-4 text-[#CC1100] shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
+          <div className="flex-1">
             <p className="text-xs font-semibold text-white">Freigabe erforderlich</p>
             <p className="text-xs text-[#999999] mt-0.5">{response.approvals[0].description}</p>
           </div>
-          <span className="px-2 py-1 rounded bg-[#CC1100] text-[10px] font-bold text-white shrink-0">{response.approvals.length}</span>
+          <span className="px-2 py-1 rounded bg-[#CC1100] text-[10px] font-bold text-white">{response.approvals.length}</span>
         </div>
       )}
 
-      {/* Agenten-Ergebnisse */}
-      {visibleResults.length > 0 && (
+      {visible.length > 0 && (
         <div className="space-y-2">
           <p className="text-[10px] uppercase tracking-[0.1em] text-[#999999] font-semibold">Agentenergebnisse</p>
-          {visibleResults.map((result) => <AgentResultCard key={result.id} result={result} />)}
+          {visible.map((r) => <AgentResultCard key={r.id} result={r} />)}
           {!showAll && response.results.length > 3 && (
             <button onClick={() => setShowAll(true)} className="flex items-center gap-1.5 text-xs text-[#CC1100] hover:underline">
-              <ChevronRight className="w-3 h-3" />
-              {response.results.length - 3} weitere anzeigen
+              <ChevronRight className="w-3 h-3" />{response.results.length - 3} weitere
             </button>
           )}
         </div>
       )}
 
-      {/* Nächste Schritte */}
       {response.nextSteps.length > 0 && (
         <div className="px-4 py-3 rounded-xl bg-[#1A1A1A] border border-[#2A2A2A]">
           <p className="text-[10px] uppercase tracking-[0.1em] text-[#C9A84C] font-semibold mb-2">Nächste Schritte</p>
           <ul className="space-y-1.5">
             {response.nextSteps.map((step, i) => (
               <li key={i} className="flex items-start gap-2 text-xs text-[#cccccc]">
-                <span className="text-[#C9A84C] font-bold shrink-0">{i + 1}.</span>
-                {step}
+                <span className="text-[#C9A84C] font-bold shrink-0">{i + 1}.</span>{step}
               </li>
             ))}
           </ul>
@@ -264,37 +294,107 @@ function JarvisResponseBubble({ response, googleData }: { response: JarvisRespon
 
 // ── Beispiel-Prompts ──────────────────────────────────────────────────────────
 
-const EXAMPLE_PROMPTS = [
+const EXAMPLES = [
   "Zeig mir meine ungelesenen Mails",
   "Was habe ich heute im Kalender?",
-  "Neue Kundenanfrage von einem KMU aus Wien",
-  "Erstelle Angebotsstruktur für KI-Chatbot",
-  "Plane Content für nächste Woche",
-  "Welche Drive-Dateien habe ich zuletzt geändert?",
-  "Prüfe diesen Workflow auf Risiken",
-  "Developer-Briefing für neue API-Integration",
+  "Neue Kundenanfrage aus Wien — was tun?",
+  "Erstelle Angebotsstruktur KI-Chatbot",
+  "Welche Drive-Dateien zuletzt geändert?",
+  "Content-Plan nächste Woche KI-Automatisierung",
 ];
 
 // ── Haupt-Komponente ──────────────────────────────────────────────────────────
 
 export function JarvisChat() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input,    setInput]    = useState("");
-  const [loading,  setLoading]  = useState(false);
+  const [messages,        setMessages]        = useState<ChatMessage[]>([]);
+  const [input,           setInput]           = useState("");
+  const [loading,         setLoading]         = useState(false);
+  const [sessionId,       setSessionId]       = useState<string | null>(null);
+  const [sessions,        setSessions]        = useState<ChatSession[]>([]);
+  const [sidebarOpen,     setSidebarOpen]     = useState(false);
+  const [loadingSessions, setLoadingSessions] = useState(false);
   const bottomRef   = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
 
+  // Sessions laden
+  const loadSessions = useCallback(async () => {
+    setLoadingSessions(true);
+    try {
+      const res  = await fetch("/api/chat/sessions", { credentials: "include" });
+      const json = await res.json();
+      if (json.success) setSessions(json.data);
+    } finally { setLoadingSessions(false); }
+  }, []);
+
+  useEffect(() => { loadSessions(); }, [loadSessions]);
+
+  // Session wechseln / öffnen
+  async function openSession(id: string) {
+    setSessionId(id);
+    setSidebarOpen(false);
+    const res  = await fetch(`/api/chat/messages?sessionId=${id}`, { credentials: "include" });
+    const json = await res.json();
+    if (!json.success) return;
+
+    const msgs: ChatMessage[] = json.data.map((row: {
+      id: string; role: "user" | "jarvis"; content: string;
+      jarvisData: unknown; googleData: unknown; createdAt: string;
+    }) => ({
+      id:             row.id,
+      role:           row.role,
+      content:        row.content,
+      jarvisResponse: row.role === "jarvis" && row.jarvisData ? (row.jarvisData as JarvisResponse) : undefined,
+      googleData:     row.googleData as GoogleData | undefined,
+      timestamp:      new Date(row.createdAt),
+    }));
+    setMessages(msgs);
+  }
+
+  // Neue Session
+  function newSession() {
+    setSessionId(null);
+    setMessages([]);
+    setSidebarOpen(false);
+    textareaRef.current?.focus();
+  }
+
   async function sendMessage(text: string) {
     if (!text.trim() || loading) return;
 
-    setMessages((prev) => [...prev, {
+    // Session anlegen falls noch keine existiert
+    let currentSessionId = sessionId;
+    if (!currentSessionId) {
+      const res  = await fetch("/api/chat/sessions", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: text.trim().slice(0, 60) }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        currentSessionId = json.data.id;
+        setSessionId(currentSessionId);
+        setSessions((prev) => [json.data, ...prev]);
+      }
+    }
+
+    const userMsg: ChatMessage = {
       id: Math.random().toString(36).slice(2),
       role: "user", content: text.trim(), timestamp: new Date(),
-    }]);
+    };
+    setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setLoading(true);
+
+    // User-Message in Supabase speichern
+    if (currentSessionId) {
+      await fetch("/api/chat/messages", {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: currentSessionId, role: "user", content: text.trim() }),
+      }).catch(() => {});
+    }
 
     try {
       const route           = detectIntent(text.trim());
@@ -303,13 +403,12 @@ export function JarvisChat() {
       const handoff         = getHandoffEntry(intent);
 
       const res = await fetch("/api/jarvis/chat", {
-        method:      "POST",
-        credentials: "include",
-        headers:     { "Content-Type": "application/json" },
-        body:        JSON.stringify({ message: text.trim(), intent, activatedAgents }),
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text.trim(), intent, activatedAgents }),
       });
 
-      if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+      if (!res.ok) throw new Error(`API ${res.status}`);
 
       const json       = await res.json();
       const data       = json.data;
@@ -317,13 +416,11 @@ export function JarvisChat() {
       const taskId     = Math.random().toString(36).slice(2);
 
       const results: AgentResult[] = (data.agentResults ?? []).map((r: {
-        agentId: string; summary: string; details: string;
-        suggestedActions: string[]; risks: string[];
+        agentId: string; summary: string; details: string; suggestedActions: string[]; risks: string[];
       }, i: number) => ({
         id: `r-${i}`, taskId, agentId: r.agentId, status: "done" as const,
         summary: r.summary, details: r.details,
-        suggestedActions: r.suggestedActions ?? [],
-        risks: r.risks ?? [],
+        suggestedActions: r.suggestedActions ?? [], risks: r.risks ?? [],
         createdAt: new Date().toISOString(),
       }));
 
@@ -333,32 +430,45 @@ export function JarvisChat() {
         description: handoff.approvalReason ?? "Diese Aktion erfordert deine Freigabe.",
         actionType: "trigger_external_api",
         riskLevel: handoff.priority === "urgent" ? "critical" : handoff.priority === "high" ? "high" : "medium",
-        status: "open", involvedAgents: activatedAgents,
-        createdAt: new Date().toISOString(),
+        status: "open", involvedAgents: activatedAgents, createdAt: new Date().toISOString(),
       }] : [];
 
       const response: JarvisResponse = {
         taskId, intent, activatedAgents,
-        summary:         data.summary ?? "Jarvis hat die Aufgabe bearbeitet.",
-        results,
-        approvalRequired: approvals.length > 0,
-        approvals,
-        logs: [],
-        nextSteps: data.nextSteps ?? [],
+        summary: data.summary ?? "Jarvis hat die Aufgabe bearbeitet.",
+        results, approvalRequired: approvals.length > 0, approvals,
+        logs: [], nextSteps: data.nextSteps ?? [],
       };
 
-      setMessages((prev) => [...prev, {
+      const jarvisMsg: ChatMessage = {
         id: Math.random().toString(36).slice(2),
         role: "jarvis", content: response.summary,
-        jarvisResponse: response, googleData,
-        timestamp: new Date(),
-      }]);
+        jarvisResponse: response, googleData, timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, jarvisMsg]);
+
+      // Jarvis-Message in Supabase speichern
+      if (currentSessionId) {
+        await fetch("/api/chat/messages", {
+          method: "POST", credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: currentSessionId, role: "jarvis",
+            content: response.summary,
+            jarvisData: response, googleData,
+          }),
+        }).catch(() => {});
+        // Session-Liste aktualisieren
+        setSessions((prev) => prev.map((s) =>
+          s.id === currentSessionId ? { ...s, updatedAt: new Date().toISOString() } : s
+        ));
+      }
 
     } catch (err) {
       setMessages((prev) => [...prev, {
         id: Math.random().toString(36).slice(2),
         role: "jarvis",
-        content: "Entschuldigung — Jarvis konnte die Anfrage nicht verarbeiten. Bitte prüfe den OpenAI API Key in .env.local.",
+        content: "Entschuldigung — Jarvis konnte die Anfrage nicht verarbeiten.",
         timestamp: new Date(),
       }]);
       console.error("Jarvis error:", err);
@@ -372,96 +482,151 @@ export function JarvisChat() {
   }
 
   return (
-    <div className="flex flex-col h-full max-w-4xl mx-auto">
-      {/* Empty State */}
-      {messages.length === 0 && (
-        <div className="flex-1 flex flex-col items-center justify-center pb-6">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mb-4 shadow-lg"
-            style={{ background: "var(--gradient-phoenix)", boxShadow: "var(--glow-red)" }}>
-            🧠
+    <div className="flex h-full gap-0 max-w-6xl mx-auto">
+
+      {/* Session Sidebar */}
+      <div className={`flex flex-col shrink-0 transition-all duration-200 ${sidebarOpen ? "w-56" : "w-0"} overflow-hidden`}>
+        <div className="w-56 flex flex-col h-full bg-[#111111] border-r border-[#2A2A2A]">
+          <div className="flex items-center justify-between px-3 py-3 border-b border-[#2A2A2A]">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[#999999]">Chats</span>
+            <button onClick={newSession} className="flex items-center gap-1 text-[10px] text-[#CC1100] hover:underline">
+              <Plus className="w-3 h-3" /> Neu
+            </button>
           </div>
-          <h2 className="text-xl font-bold text-white mb-1">Jarvis ist bereit</h2>
-          <p className="text-sm text-[#999999] text-center max-w-sm mb-6">
-            Stelle eine Aufgabe — ich koordiniere das Agententeam und liefere direkt nutzbare Ergebnisse.
-          </p>
-          <div className="grid grid-cols-2 gap-2 w-full max-w-lg">
-            {EXAMPLE_PROMPTS.map((p) => (
-              <button key={p} onClick={() => sendMessage(p)}
-                className="px-3 py-2.5 rounded-lg bg-[#1A1A1A] border border-[#2A2A2A] text-xs text-[#999999] hover:text-white hover:border-[#CC1100]/30 transition-all text-left">
-                {p}
+          <div className="flex-1 overflow-y-auto py-1">
+            {loadingSessions ? (
+              <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 text-[#555555] animate-spin" /></div>
+            ) : sessions.length === 0 ? (
+              <p className="text-[11px] text-[#555555] text-center py-6">Noch keine Chats</p>
+            ) : sessions.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => openSession(s.id)}
+                className={`w-full flex flex-col px-3 py-2.5 text-left hover:bg-[#1A1A1A] transition-colors border-b border-[#1A1A1A] ${s.id === sessionId ? "bg-[#1A1A1A] border-l-2 border-l-[#CC1100]" : ""}`}
+              >
+                <p className="text-xs text-white truncate">{s.title || "Neuer Chat"}</p>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <Clock className="w-2.5 h-2.5 text-[#555555]" />
+                  <p className="text-[10px] text-[#555555]">{relativeDay(s.updatedAt)}</p>
+                </div>
               </button>
             ))}
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Chat */}
-      {messages.length > 0 && (
-        <div className="flex-1 overflow-y-auto py-4 space-y-6 pr-1">
-          {messages.map((msg) => (
-            <div key={msg.id} className={msg.role === "user" ? "flex justify-end" : "flex flex-col gap-2"}>
-              {msg.role === "user" ? (
-                <div className="max-w-[80%]">
-                  <div className="px-4 py-2.5 rounded-2xl rounded-tr-sm bg-[#CC1100] text-white text-sm leading-relaxed">
-                    {msg.content}
-                  </div>
-                  <p className="text-[10px] text-[#999999] text-right mt-1 pr-1">{formatTime(msg.timestamp)}</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-[10px] text-[#999999] pl-1">Jarvis · {formatTime(msg.timestamp)}</p>
-                  {msg.jarvisResponse ? (
-                    <JarvisResponseBubble response={msg.jarvisResponse} googleData={msg.googleData} />
-                  ) : (
-                    <div className="px-4 py-3 rounded-xl bg-[#1A1A1A] border border-[#2A2A2A] text-sm text-white">
+      {/* Chat Area */}
+      <div className="flex flex-col flex-1 min-w-0">
+        {/* Chat-Header */}
+        <div className="flex items-center gap-3 pb-3 border-b border-[#2A2A2A] mb-4 shrink-0">
+          <button
+            onClick={() => { setSidebarOpen((v) => !v); if (!sidebarOpen) loadSessions(); }}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#1A1A1A] border border-[#2A2A2A] text-xs text-[#999999] hover:text-white transition-colors"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>{sidebarOpen ? "Schließen" : `Chats${sessions.length > 0 ? ` (${sessions.length})` : ""}`}</span>
+          </button>
+          {sessionId && (
+            <button onClick={newSession} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1A1A1A] border border-[#2A2A2A] text-xs text-[#999999] hover:text-white transition-colors">
+              <Plus className="w-3.5 h-3.5" /> Neuer Chat
+            </button>
+          )}
+          {sessionId && (
+            <span className="text-xs text-[#555555] truncate">
+              {sessions.find((s) => s.id === sessionId)?.title ?? "Chat"}
+            </span>
+          )}
+        </div>
+
+        {/* Empty State */}
+        {messages.length === 0 && (
+          <div className="flex-1 flex flex-col items-center justify-center pb-6">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mb-4 shadow-lg"
+              style={{ background: "var(--gradient-phoenix)", boxShadow: "var(--glow-red)" }}>
+              🧠
+            </div>
+            <h2 className="text-xl font-bold text-white mb-1">Jarvis ist bereit</h2>
+            <p className="text-sm text-[#999999] text-center max-w-sm mb-6">
+              Stelle eine Aufgabe — Chats werden automatisch gespeichert.
+            </p>
+            <div className="grid grid-cols-2 gap-2 w-full max-w-lg">
+              {EXAMPLES.map((p) => (
+                <button key={p} onClick={() => sendMessage(p)}
+                  className="px-3 py-2.5 rounded-lg bg-[#1A1A1A] border border-[#2A2A2A] text-xs text-[#999999] hover:text-white hover:border-[#CC1100]/30 transition-all text-left">
+                  {p}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Nachrichten */}
+        {messages.length > 0 && (
+          <div className="flex-1 overflow-y-auto py-2 space-y-6 pr-1">
+            {messages.map((msg) => (
+              <div key={msg.id} className={msg.role === "user" ? "flex justify-end" : "flex flex-col gap-2"}>
+                {msg.role === "user" ? (
+                  <div className="max-w-[80%]">
+                    <div className="px-4 py-2.5 rounded-2xl rounded-tr-sm bg-[#CC1100] text-white text-sm leading-relaxed">
                       {msg.content}
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-
-          {loading && (
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm" style={{ background: "var(--gradient-phoenix)" }}>🧠</div>
-              <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#1A1A1A] border border-[#2A2A2A]">
-                <Loader2 className="w-3.5 h-3.5 text-[#CC1100] animate-spin" />
-                <span className="text-xs text-[#999999]">Jarvis koordiniert das Agententeam…</span>
+                    <p className="text-[10px] text-[#999999] text-right mt-1 pr-1">{formatTime(msg.timestamp)}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-[#999999] pl-1">Jarvis · {formatTime(msg.timestamp)}</p>
+                    {msg.jarvisResponse ? (
+                      <JarvisResponseBubble response={msg.jarvisResponse} googleData={msg.googleData} />
+                    ) : (
+                      <div className="px-4 py-3 rounded-xl bg-[#1A1A1A] border border-[#2A2A2A] text-sm text-white leading-relaxed">
+                        {msg.content}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
-          )}
-          <div ref={bottomRef} />
-        </div>
-      )}
+            ))}
+            {loading && (
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm" style={{ background: "var(--gradient-phoenix)" }}>🧠</div>
+                <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#1A1A1A] border border-[#2A2A2A]">
+                  <Loader2 className="w-3.5 h-3.5 text-[#CC1100] animate-spin" />
+                  <span className="text-xs text-[#999999]">Jarvis koordiniert das Agententeam…</span>
+                </div>
+              </div>
+            )}
+            <div ref={bottomRef} />
+          </div>
+        )}
 
-      {/* Input */}
-      <div className="shrink-0 pt-4">
-        <div className="flex items-end gap-3 p-3 rounded-xl bg-[#1A1A1A] border border-[#2A2A2A] focus-within:border-[#CC1100]/40 transition-colors">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0 mb-0.5" style={{ background: "var(--gradient-phoenix)" }}>🧠</div>
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Stelle Jarvis eine Aufgabe… (Enter senden · Shift+Enter neue Zeile)"
-            rows={1}
-            disabled={loading}
-            className="flex-1 bg-transparent text-sm text-white placeholder-[#999999] resize-none focus:outline-none min-h-[36px] max-h-40 py-1.5 leading-relaxed disabled:opacity-50"
-            style={{ scrollbarWidth: "none" }}
-          />
-          <button
-            onClick={() => sendMessage(input)}
-            disabled={!input.trim() || loading}
-            className="flex items-center justify-center w-9 h-9 rounded-lg text-white transition-all active:scale-95 shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ background: input.trim() && !loading ? "var(--gradient-phoenix)" : "#2A2A2A" }}
-          >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          </button>
+        {/* Input */}
+        <div className="shrink-0 pt-4">
+          <div className="flex items-end gap-3 p-3 rounded-xl bg-[#1A1A1A] border border-[#2A2A2A] focus-within:border-[#CC1100]/40 transition-colors">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0 mb-0.5" style={{ background: "var(--gradient-phoenix)" }}>🧠</div>
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Stelle Jarvis eine Aufgabe… (Enter senden · Shift+Enter neue Zeile)"
+              rows={1}
+              disabled={loading}
+              className="flex-1 bg-transparent text-sm text-white placeholder-[#999999] resize-none focus:outline-none min-h-[36px] max-h-40 py-1.5 leading-relaxed disabled:opacity-50"
+              style={{ scrollbarWidth: "none" }}
+            />
+            <button
+              onClick={() => sendMessage(input)}
+              disabled={!input.trim() || loading}
+              className="flex items-center justify-center w-9 h-9 rounded-lg text-white transition-all active:scale-95 shrink-0 disabled:opacity-40"
+              style={{ background: input.trim() && !loading ? "var(--gradient-phoenix)" : "#2A2A2A" }}
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            </button>
+          </div>
+          <p className="text-center text-[10px] text-[#999999] mt-1.5">
+            Jarvis führt · Agententeam unterstützt · Chats werden gespeichert
+          </p>
         </div>
-        <p className="text-center text-[10px] text-[#999999] mt-1.5">
-          Jarvis führt · Das Agententeam unterstützt · Phynyx entscheidet
-        </p>
       </div>
     </div>
   );
