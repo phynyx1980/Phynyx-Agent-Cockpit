@@ -449,6 +449,10 @@ function JarvisResponseBubble({ response, googleData, draftData }: { response: J
       {googleData?.tasks    && googleData.tasks.length    > 0 && <TasksBlock    tasks={googleData.tasks} />}
       {googleData?.drive    && googleData.drive.length    > 0 && <DriveBlock    files={googleData.drive} />}
 
+      {/* Entwurf-Freigabe Cards */}
+      {draftData?.emailDraft    && <EmailDraftCard    draft={draftData.emailDraft} />}
+      {draftData?.calendarDraft && <CalendarDraftCard draft={draftData.calendarDraft} />}
+
       {response.approvalRequired && response.approvals.length > 0 && (
         <div className="flex items-start gap-3 px-4 py-3 rounded-xl border border-[#CC1100]/40 bg-[#CC1100]/8">
           <ShieldCheck className="w-4 h-4 text-[#CC1100] shrink-0 mt-0.5" />
