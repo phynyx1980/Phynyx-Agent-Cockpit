@@ -227,16 +227,51 @@ export async function POST(req: NextRequest) {
       await createLog({ taskId: savedTask.id, eventType: "task_completed", message: result.summary.slice(0, 200) });
 
       if (result.requiresApproval) {
+        // Payload aus Agentenergebnissen extrahieren für echte Ausführung
+        let payload: ApprovalPayload | undefined;
+        const vegaResult = result.agentResults?.find((r: { agentId: string }) => r.agentId === "vega");
+        const linaResult = result.agentResults?.find((r: { agentId: string }) => r.agentId === "lina");
+
+        if (intent === "create_offer" && (vegaResult || linaResult)) {
+          const priceMatches = (vegaResult?.details ?? "").match(/(\d[\d.,]+\s*(?:EUR|€))/g) ?? [];
+          const clientMatch  = message.match(/für\s+([A-ZÄÖÜ][^\s,\.]+(?:\s+[A-ZÄÖÜ][^\s,\.]+)?)/i);
+          payload = {
+            type:    "offer_pdf",
+            content: `${vegaResult?.summary ?? ""}\n\n${vegaResult?.details ?? ""}`,
+            offerData: {
+              client: clientMatch?.[1] ?? "Kunde",
+              items:  vegaResult?.suggestedActions?.slice(0, 5).map((a: string, i: number) => ({
+                name: a, price: priceMatches[i] ?? "auf Anfrage",
+              })) ?? [{ name: vegaResult?.summary ?? "Leistung", price: priceMatches[0] ?? "auf Anfrage" }],
+              total: priceMatches[priceMatches.length - 1],
+              notes: linaResult?.details ?? vegaResult?.risks?.join(", "),
+            },
+          };
+        } else if (intent === "write_communication" || intent === "gmail_reply") {
+          payload = {
+            type:    "email",
+            content: linaResult?.details ?? result.summary,
+            subject: linaResult?.summary ?? message.slice(0, 60),
+          };
+        } else {
+          payload = {
+            type:    "general",
+            content: `${result.summary}\n\n${result.agentResults?.[0]?.details ?? ""}`,
+          };
+        }
+
         const approval: Omit<Approval, "id" | "createdAt"> = {
-          taskId: savedTask.id,
-          title: `Freigabe: ${intent.replace(/_/g, " ")}`,
-          description: "Freigabe durch Jarvis angefordert",
-          actionType: "trigger_external_api",
-          riskLevel: "high",
-          status: "open",
+          taskId:         savedTask.id,
+          title:          result.agentResults?.[0]?.summary ?? result.summary.slice(0, 80),
+          description:    result.summary,
+          actionType:     intent === "create_offer" ? "send_offer" : intent === "write_communication" ? "send_email" : "trigger_external_api",
+          riskLevel:      "high",
+          status:         "open",
           involvedAgents: activatedAgents,
+          payload,
         };
         await createApproval(approval);
+        await createLog({ taskId: savedTask.id, eventType: "approval_requested", message: `Freigabe: ${intent}` });
       }
     }
 
