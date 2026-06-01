@@ -201,14 +201,56 @@ export async function POST(req: NextRequest) {
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
 
-    let result: unknown;
+    let result: {
+      summary:          string;
+      agentResults:     Array<{ agentId: string; summary: string; details: string; suggestedActions: string[]; risks: string[] }>;
+      nextSteps:        string[];
+      requiresApproval: boolean;
+    };
     try {
       result = JSON.parse(raw);
     } catch {
       return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, data: result });
+    // ── In Supabase persistieren ─────────────────────────────────────────────
+    const savedTask = await createTask({
+      source:           "user",
+      userMessage:      message,
+      intent,
+      assignedAgents:   activatedAgents,
+      status:           result.requiresApproval ? "awaiting_approval" : "completed",
+      priority:         "medium",
+      resultSummary:    result.summary,
+      requiresApproval: result.requiresApproval ?? false,
+    });
+
+    if (savedTask) {
+      // Logs schreiben
+      await createLog({ taskId: savedTask.id, eventType: "task_created",   message: `Task erstellt: ${intent}` });
+      for (const agentId of activatedAgents) {
+        await createLog({ taskId: savedTask.id, eventType: "agent_activated", agentId, message: `${agentId} aktiviert` });
+      }
+      await createLog({ taskId: savedTask.id, eventType: result.requiresApproval ? "task_completed" : "task_completed", message: result.summary.slice(0, 200) });
+
+      // Approval anlegen falls nötig
+      if (result.requiresApproval) {
+        const handoffEntry = { approvalReason: "Freigabe durch Jarvis angefordert" };
+        const approval: Omit<Approval, "id" | "createdAt"> = {
+          taskId:         savedTask.id,
+          title:          `Freigabe: ${intent.replace(/_/g, " ")}`,
+          description:    handoffEntry.approvalReason,
+          actionType:     "trigger_external_api",
+          riskLevel:      "high",
+          status:         "open",
+          involvedAgents: activatedAgents,
+        };
+        await createApproval(approval);
+        await createLog({ taskId: savedTask.id, eventType: "approval_requested", message: `Freigabe angefordert für: ${intent}` });
+      }
+    }
+
+    return NextResponse.json({ success: true, data: result, taskId: savedTask?.id });
 
   } catch (err) {
     if (err instanceof OpenAI.APIError) {
