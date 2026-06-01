@@ -303,10 +303,13 @@ interface CalendarDraft {
 }
 
 function EmailDraftCard({ draft }: { draft: EmailDraft }) {
-  const [status,  setStatus]  = useState<"idle" | "creating" | "ready" | "sending" | "sent" | "error">("idle");
-  const [draftId, setDraftId] = useState<string | null>(draft.draftId ?? null);
+  const [status,          setStatus]          = useState<"idle" | "creating" | "ready" | "sending" | "sent" | "error">("idle");
+  const [draftId,         setDraftId]         = useState<string | null>(draft.draftId ?? null);
+  const [confirmPrepare,  setConfirmPrepare]  = useState(false);
+  const [confirmSend,     setConfirmSend]     = useState(false);
 
-  async function prepareDraft() {
+  async function doPrepare() {
+    setConfirmPrepare(false);
     setStatus("creating");
     try {
       const res  = await fetch("/api/google/gmail/draft", {
@@ -320,8 +323,9 @@ function EmailDraftCard({ draft }: { draft: EmailDraft }) {
     } catch { setStatus("error"); }
   }
 
-  async function sendNow() {
+  async function doSend() {
     if (!draftId) return;
+    setConfirmSend(false);
     setStatus("sending");
     try {
       const res = await fetch("/api/google/gmail/draft/send", {
