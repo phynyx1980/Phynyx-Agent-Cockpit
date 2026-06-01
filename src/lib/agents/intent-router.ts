@@ -132,35 +132,53 @@ export const INTENT_ROUTES: IntentRoute[] = [
     intent: "gmail_query",
     primaryAgent: "lina",
     supportingAgents: ["jarvis"],
-    keywords: ["mail", "mails", "gmail", "posteingang", "inbox", "ungelesen", "e-mail", "emails", "nachrichten"],
+    keywords: [
+      "mail", "mails", "gmail", "posteingang", "inbox", "ungelesen", "e-mail", "emails",
+      "nachrichten", "letzte mail", "neue mail", "zeig mir meine", "was steht in",
+      "wer hat geschrieben", "eingegangene",
+    ],
     requiresApproval: false,
   },
   {
     intent: "gmail_reply",
     primaryAgent: "lina",
     supportingAgents: ["vega", "kira"],
-    keywords: ["beantworte", "antworte", "reply", "antwort schreiben", "mail schreiben", "mail senden", "schreib eine antwort"],
+    keywords: [
+      "beantworte", "antworte", "reply", "antwort schreiben", "mail schreiben",
+      "mail senden", "schreib eine antwort", "antwort auf", "reagiere auf",
+    ],
     requiresApproval: true,
   },
   {
     intent: "calendar_query",
     primaryAgent: "jenny",
     supportingAgents: ["jarvis"],
-    keywords: ["kalender", "termine", "termin", "heute", "morgen", "diese woche", "nächste woche", "wann", "meeting", "calendar", "appointments"],
+    keywords: [
+      "kalender", "termine", "termin", "heute", "morgen", "diese woche",
+      "nächste woche", "wann", "meeting", "calendar", "was hab ich", "was habe ich",
+      "bevorstehend", "nächster termin", "appointments",
+    ],
     requiresApproval: false,
   },
   {
     intent: "tasks_query",
     primaryAgent: "jenny",
     supportingAgents: ["jarvis"],
-    keywords: ["google tasks", "meine tasks", "todo", "to-do", "was erledigen", "offene todos", "aufgabenliste"],
+    keywords: [
+      "google tasks", "meine tasks", "todo", "to-do", "was erledigen",
+      "offene todos", "aufgabenliste", "was muss ich", "meine aufgaben",
+    ],
     requiresApproval: false,
   },
   {
     intent: "drive_query",
     primaryAgent: "atlas",
     supportingAgents: ["jarvis"],
-    keywords: ["drive", "dokument", "datei", "dateien", "google drive", "zuletzt bearbeitet", "dokumente", "sheets", "slides"],
+    keywords: [
+      "drive", "dokument", "datei", "dateien", "google drive", "zuletzt bearbeitet",
+      "dokumente", "sheets", "slides", "meine dateien", "welche dateien",
+      "ordner", "meldeschein", "was liegt in",
+    ],
     requiresApproval: false,
   },
 ];
