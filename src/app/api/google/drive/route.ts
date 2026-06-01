@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const files = q
-      ? await searchFiles(req.nextUrl.searchParams.get("q")!.trim(), session.accessToken, 10)
+      ? await searchFiles(session.accessToken, q.trim(), 10)
       : await getRecentFiles(session.accessToken, 15);
     return NextResponse.json({ success: true, data: files });
   } catch (err) {
