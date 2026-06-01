@@ -165,21 +165,12 @@ export function IntegrationsClient({ isConnected, userEmail }: Props) {
               {emails.length === 0 ? (
                 <p className="text-xs text-[#555555] text-center py-8">Keine E-Mails</p>
               ) : emails.map((mail) => (
-                <div key={mail.id} className="px-4 py-3 hover:bg-[#111111] transition-colors">
-                  <div className="flex items-start gap-2">
-                    {mail.unread && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#CC1100] mt-1.5 shrink-0" />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-xs truncate ${mail.unread ? "text-white font-semibold" : "text-[#cccccc]"}`}>
-                        {mail.subject}
-                      </p>
-                      <p className="text-[10px] text-[#999999] truncate mt-0.5">{mail.from.split("<")[0].trim()}</p>
-                      <p className="text-[10px] text-[#555555] mt-0.5 line-clamp-1">{mail.snippet}</p>
-                    </div>
-                    <span className="text-[10px] text-[#555555] shrink-0">{relativeTime(mail.date)}</span>
-                  </div>
-                </div>
+                <MailRow
+                  key={mail.id}
+                  mail={mail}
+                  onRemove={(id) => setEmails((prev) => prev.filter((m) => m.id !== id))}
+                  onRead={(id) => setEmails((prev) => prev.map((m) => m.id === id ? { ...m, unread: false } : m))}
+                />
               ))}
             </div>
           </div>
