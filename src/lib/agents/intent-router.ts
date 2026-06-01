@@ -128,6 +128,41 @@ export const INTENT_ROUTES: IntentRoute[] = [
     keywords: ["aufgaben", "tasks", "offene aufgaben", "was läuft", "status", "übersicht"],
     requiresApproval: false,
   },
+  {
+    intent: "gmail_query",
+    primaryAgent: "lina",
+    supportingAgents: ["jarvis"],
+    keywords: ["mail", "mails", "gmail", "posteingang", "inbox", "ungelesen", "e-mail", "emails", "nachrichten"],
+    requiresApproval: false,
+  },
+  {
+    intent: "gmail_reply",
+    primaryAgent: "lina",
+    supportingAgents: ["vega", "kira"],
+    keywords: ["beantworte", "antworte", "reply", "antwort schreiben", "mail schreiben", "mail senden", "schreib eine antwort"],
+    requiresApproval: true,
+  },
+  {
+    intent: "calendar_query",
+    primaryAgent: "jenny",
+    supportingAgents: ["jarvis"],
+    keywords: ["kalender", "termine", "termin", "heute", "morgen", "diese woche", "nächste woche", "wann", "meeting", "calendar", "appointments"],
+    requiresApproval: false,
+  },
+  {
+    intent: "tasks_query",
+    primaryAgent: "jenny",
+    supportingAgents: ["jarvis"],
+    keywords: ["google tasks", "meine tasks", "todo", "to-do", "was erledigen", "offene todos", "aufgabenliste"],
+    requiresApproval: false,
+  },
+  {
+    intent: "drive_query",
+    primaryAgent: "atlas",
+    supportingAgents: ["jarvis"],
+    keywords: ["drive", "dokument", "datei", "dateien", "google drive", "zuletzt bearbeitet", "dokumente", "sheets", "slides"],
+    requiresApproval: false,
+  },
 ];
 
 export function detectIntent(message: string): IntentRoute {
