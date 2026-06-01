@@ -379,6 +379,15 @@ export function ApprovalCard({ approval, onStatusChange, onDelete }: ApprovalCar
         onConfirm={() => executeAction("defer")}
         onCancel={() => setConfirmDefer(false)}
       />
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Freigabe löschen?"
+        description={`"${approval.title}" wird dauerhaft aus dem Freigabezentrum entfernt.`}
+        confirmLabel="Ja, löschen"
+        danger
+        onConfirm={doDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }
