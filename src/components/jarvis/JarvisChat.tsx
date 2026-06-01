@@ -2,9 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Send, ShieldCheck, ChevronRight, Loader2 } from "lucide-react";
-import { runJarvisOrchestrator } from "@/lib/agents/jarvis-orchestrator";
+import { detectIntent } from "@/lib/agents/intent-router";
+import { getAllAgentsForIntent, getHandoffEntry } from "@/lib/agents/handoff-matrix";
 import { getAgentById } from "@/lib/agents/agent-registry";
-import type { JarvisResponse } from "@/lib/agents/agent-types";
+import type { JarvisResponse, AgentResult, Approval } from "@/lib/agents/agent-types";
 import { AgentResultCard } from "./AgentResultCard";
 
 interface ChatMessage {
