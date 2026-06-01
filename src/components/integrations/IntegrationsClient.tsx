@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { signIn, signOut } from "next-auth/react";
-import { Mail, Calendar, CheckSquare, LogOut, RefreshCw, ExternalLink, Loader2 } from "lucide-react";
+import { Mail, Calendar, CheckSquare, LogOut, RefreshCw, ExternalLink, Loader2, CheckCheck, Trash2 } from "lucide-react";
 import type { GmailMessage } from "@/lib/integrations/gmail";
 import type { CalendarEvent } from "@/lib/integrations/calendar";
 import type { GoogleTask } from "@/lib/integrations/tasks";
