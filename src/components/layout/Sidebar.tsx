@@ -132,7 +132,6 @@ export function Sidebar() {
         <p className="text-[10px] uppercase tracking-[0.15em] text-[#999999] font-medium">
           Phynyx Trust Solutions
         </p>
-        <p className="text-[10px] text-[#2A2A2A] mt-0.5">MVP · Mock Mode</p>
       </div>
     </aside>
   );
