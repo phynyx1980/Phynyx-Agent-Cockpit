@@ -132,7 +132,7 @@ function EmailCard({ mail, onRemove }: { mail: GmailMessage; onRemove?: (id: str
         <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
           {unread && (
             <button
-              onClick={markRead}
+              onClick={(e) => { e.stopPropagation(); setConfirmRead(true); }}
               title="Als gelesen markieren"
               className="p-1 rounded hover:bg-[#22C55E]/20 text-[#555555] hover:text-[#22C55E] transition-colors"
             >
@@ -140,7 +140,7 @@ function EmailCard({ mail, onRemove }: { mail: GmailMessage; onRemove?: (id: str
             </button>
           )}
           <button
-            onClick={deleteMail}
+            onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
             title="In Papierkorb"
             className="p-1 rounded hover:bg-[#CC1100]/20 text-[#555555] hover:text-[#CC1100] transition-colors"
           >
@@ -151,6 +151,25 @@ function EmailCard({ mail, onRemove }: { mail: GmailMessage; onRemove?: (id: str
           </button>
         </div>
       </div>
+
+      {/* Bestätigungs-Dialoge */}
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Mail löschen?"
+        description={`"${mail.subject}" wird in den Gmail-Papierkorb verschoben.`}
+        confirmLabel="Ja, löschen"
+        danger
+        onConfirm={doDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
+      <ConfirmDialog
+        open={confirmRead}
+        title="Als gelesen markieren?"
+        description={`"${mail.subject}" wird als gelesen markiert.`}
+        confirmLabel="Ja, markieren"
+        onConfirm={doMarkRead}
+        onCancel={() => setConfirmRead(false)}
+      />
 
       {open && body !== null && (
         <div className="px-3 pb-3">
