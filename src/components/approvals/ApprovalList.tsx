@@ -53,14 +53,10 @@ export function ApprovalList({ approvals: initial }: ApprovalListProps) {
     return { active, done };
   }, [items, filter]);
 
-  function handleApprove(id: string) {
-    setItems((prev) => prev.map((a) => a.id === id ? { ...a, status: "approved", approvedAt: new Date().toISOString() } : a));
-  }
-  function handleReject(id: string) {
-    setItems((prev) => prev.map((a) => a.id === id ? { ...a, status: "rejected" } : a));
-  }
-  function handleDefer(id: string) {
-    setItems((prev) => prev.map((a) => a.id === id ? { ...a, status: "deferred" } : a));
+  function handleStatusChange(id: string, newStatus: Approval["status"]) {
+    setItems((prev) => prev.map((a) =>
+      a.id === id ? { ...a, status: newStatus, approvedAt: newStatus === "approved" ? new Date().toISOString() : a.approvedAt } : a
+    ));
   }
 
   const activeTab = FILTER_TABS.find((t) => t.key === filter)!;
