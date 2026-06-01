@@ -145,7 +145,7 @@ export function WorkflowList({ tasks: initial, logs }: WorkflowListProps) {
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
           {filtered.map((task) => (
-            <WorkflowCard key={task.id} task={task} logs={logs[task.id] ?? []} />
+            <WorkflowCard key={task.id} task={task} logs={logs[task.id] ?? []} onDelete={handleDelete} />
           ))}
         </div>
       )}
