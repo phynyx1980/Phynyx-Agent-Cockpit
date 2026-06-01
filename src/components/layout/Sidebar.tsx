@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   MessageSquare,
@@ -18,25 +19,11 @@ import {
 } from "lucide-react";
 
 interface NavItem {
-  href: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  badge?: number;
+  href:       string;
+  label:      string;
+  icon:       React.ComponentType<{ className?: string }>;
+  badgeKey?:  "workflows" | "approvals";
 }
-
-const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/", label: "Jarvis Chat", icon: MessageSquare },
-  { href: "/agents", label: "Agententeam", icon: Users },
-  { href: "/workflows", label: "Workflow Center", icon: GitBranch, badge: 3 },
-  { href: "/approvals", label: "Freigaben", icon: ShieldCheck, badge: 2 },
-  { href: "/leads", label: "Kunden / Leads", icon: UserCheck },
-  { href: "/sales", label: "Angebote / Sales", icon: Briefcase },
-  { href: "/content", label: "Content / Marketing", icon: Megaphone },
-  { href: "/technical", label: "Technik / QA", icon: Wrench },
-  { href: "/settings", label: "Einstellungen", icon: Settings },
-  { href: "/integrations", label: "Integrationen", icon: Plug },
-];
 
 export function Sidebar() {
   const pathname = usePathname();
