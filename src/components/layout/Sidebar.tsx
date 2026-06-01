@@ -25,8 +25,33 @@ interface NavItem {
   badgeKey?:  "workflows" | "approvals";
 }
 
+const navItems: NavItem[] = [
+  { href: "/dashboard",    label: "Dashboard",          icon: LayoutDashboard },
+  { href: "/",             label: "Jarvis Chat",         icon: MessageSquare },
+  { href: "/agents",       label: "Agententeam",         icon: Users },
+  { href: "/workflows",    label: "Workflow Center",     icon: GitBranch,   badgeKey: "workflows" },
+  { href: "/approvals",    label: "Freigaben",           icon: ShieldCheck, badgeKey: "approvals" },
+  { href: "/leads",        label: "Kunden / Leads",      icon: UserCheck },
+  { href: "/sales",        label: "Angebote / Sales",    icon: Briefcase },
+  { href: "/content",      label: "Content / Marketing", icon: Megaphone },
+  { href: "/technical",    label: "Technik / QA",        icon: Wrench },
+  { href: "/settings",     label: "Einstellungen",       icon: Settings },
+  { href: "/integrations", label: "Integrationen",       icon: Plug },
+];
+
 export function Sidebar() {
   const pathname = usePathname();
+  const [badges, setBadges] = useState<{ workflows: number; approvals: number }>({
+    workflows: 0,
+    approvals: 0,
+  });
+
+  useEffect(() => {
+    fetch("/api/badges")
+      .then((r) => r.json())
+      .then((d) => setBadges(d))
+      .catch(() => {});
+  }, [pathname]); // bei jeder Navigation neu laden
 
   return (
     <aside className="flex flex-col w-64 min-h-screen bg-[#111111] border-r border-[#2A2A2A] shrink-0">
