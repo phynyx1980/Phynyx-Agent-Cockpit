@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { getInbox } from "@/lib/integrations/gmail";
 import { getUpcomingEvents } from "@/lib/integrations/calendar";
 import { getTasks as getGoogleTasks } from "@/lib/integrations/tasks";
+import type { Intent } from "@/lib/agents/agent-types";
 import { getRecentFiles } from "@/lib/integrations/drive";
 import type { GmailMessage } from "@/lib/integrations/gmail";
 import type { CalendarEvent } from "@/lib/integrations/calendar";
