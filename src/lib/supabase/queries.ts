@@ -124,6 +124,7 @@ export async function createApproval(
       status:          approval.status,
       involved_agents: approval.involvedAgents,
       notes:           approval.notes ?? null,
+      payload:         approval.payload ?? null,
     })
     .select()
     .single();
