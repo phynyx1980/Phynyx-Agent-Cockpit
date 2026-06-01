@@ -36,10 +36,10 @@ export default function DashboardPage() {
   const source    = buildDataSource(tasks, approvals);
   const agents    = source.getAgents();
 
-  const agentStats   = getAgentStats(agents);
-  const taskStats    = getTaskStats(tasks);
+  const agentStats    = getAgentStats(agents);
+  const taskStats     = getTaskStats(tasks);
   const approvalStats = getApprovalStats(approvals);
-  const feed         = getRecentActivity(tasks, approvals, 8);
+  const feed          = getRecentActivity(tasks, approvals, 8);
 
   const hasUrgent   = taskStats.urgent > 0;
   const hasApprovals = approvalStats.open > 0;
