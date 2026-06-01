@@ -613,6 +613,7 @@ export function JarvisChat() {
       const json       = await res.json();
       const data       = json.data;
       const googleData = json.googleData as GoogleData | undefined;
+      const draftData  = json.draftData  as DraftData  | undefined;
       const taskId     = Math.random().toString(36).slice(2);
 
       const results: AgentResult[] = (data.agentResults ?? []).map((r: {
