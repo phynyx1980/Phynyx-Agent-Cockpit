@@ -423,7 +423,7 @@ function AgentBar({ agentIds }: { agentIds: string[] }) {
 
 // ── Jarvis Response Bubble ────────────────────────────────────────────────────
 
-function JarvisResponseBubble({ response, googleData }: { response: JarvisResponse; googleData?: GoogleData }) {
+function JarvisResponseBubble({ response, googleData, draftData }: { response: JarvisResponse; googleData?: GoogleData; draftData?: DraftData }) {
   const [showAll, setShowAll] = useState(false);
   const visible = showAll ? response.results : response.results.slice(0, 3);
 
