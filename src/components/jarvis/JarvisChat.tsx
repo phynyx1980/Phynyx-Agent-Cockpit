@@ -36,6 +36,7 @@ interface ChatMessage {
   content:         string;
   jarvisResponse?: JarvisResponse;
   googleData?:     GoogleData;
+  draftData?:      DraftData;
   timestamp:       Date;
 }
 
