@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Send, ShieldCheck, ChevronRight, Loader2, Mail, Calendar,
   CheckSquare, HardDrive, ExternalLink, Plus, MessageSquare,
-  ChevronDown, ChevronUp, Clock, CheckCheck, Trash2, SendHorizonal, CalendarPlus,
+  ChevronDown, ChevronUp, Clock, CheckCheck, Trash2, SendHorizonal, CalendarPlus, X,
 } from "lucide-react";
 import { detectIntent } from "@/lib/agents/intent-router";
 import { getAllAgentsForIntent, getHandoffEntry } from "@/lib/agents/handoff-matrix";
