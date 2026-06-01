@@ -37,31 +37,28 @@ function formatDate(iso: string): string {
 }
 
 export function IntegrationsClient({ isConnected, userEmail }: Props) {
-  const [emails,   setEmails]   = useState<GmailMessage[]>([]);
-  const [events,   setEvents]   = useState<CalendarEvent[]>([]);
-  const [tasks,    setTasks]    = useState<GoogleTask[]>([]);
-  const [files,    setFiles]    = useState<DriveFile[]>([]);
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState<string | null>(null);
+  const [emails,  setEmails]  = useState<GmailMessage[]>([]);
+  const [events,  setEvents]  = useState<CalendarEvent[]>([]);
+  const [tasks,   setTasks]   = useState<GoogleTask[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     if (!isConnected) return;
     setLoading(true);
     setError(null);
     try {
-      const [gmailRes, calRes, tasksRes, driveRes] = await Promise.all([
+      const [gmailRes, calRes, tasksRes] = await Promise.all([
         fetch("/api/google/gmail"),
         fetch("/api/google/calendar"),
         fetch("/api/google/tasks"),
-        fetch("/api/google/drive"),
       ]);
-      const [gmail, cal, task, drive] = await Promise.all([
-        gmailRes.json(), calRes.json(), tasksRes.json(), driveRes.json(),
+      const [gmail, cal, task] = await Promise.all([
+        gmailRes.json(), calRes.json(), tasksRes.json(),
       ]);
-      if (gmail.success)  setEmails(gmail.data);
-      if (cal.success)    setEvents(cal.data);
-      if (task.success)   setTasks(task.data);
-      if (drive.success)  setFiles(drive.data);
+      if (gmail.success) setEmails(gmail.data);
+      if (cal.success)   setEvents(cal.data);
+      if (task.success)  setTasks(task.data);
     } catch {
       setError("Fehler beim Laden der Google-Daten.");
     } finally {
