@@ -153,8 +153,9 @@ function PayloadPreview({ approval }: { approval: Approval }) {
 // ── Haupt-Komponente ──────────────────────────────────────────────────────────
 
 interface ApprovalCardProps {
-  approval:    Approval;
+  approval:        Approval;
   onStatusChange?: (id: string, newStatus: Approval["status"]) => void;
+  onDelete?:       (id: string) => void;
 }
 
 export function ApprovalCard({ approval, onStatusChange }: ApprovalCardProps) {
